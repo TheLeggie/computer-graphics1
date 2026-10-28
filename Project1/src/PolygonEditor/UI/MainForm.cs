@@ -95,7 +95,15 @@ public sealed class MainForm : Form
         var menu = new MenuStrip { Dock = DockStyle.Top };
         var helpItem = new ToolStripMenuItem("Pomoc") { ShortcutKeyDisplayString = "F1" };
         helpItem.Click += (_, _) => ShowHelp();
+
+        var showEdgesItem = new ToolStripMenuItem("Pokaż ukryte krawędzie");
+        showEdgesItem.Click += (_, _) =>
+        {
+            _scene.ShowAllHiddenEdges();
+            _canvas.Invalidate();
+        };
         menu.Items.Add(helpItem);
+        menu.Items.Add(showEdgesItem);
         MainMenuStrip = menu;
         return menu;
     }

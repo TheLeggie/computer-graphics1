@@ -24,6 +24,8 @@ public class Edge
     // punkt kontrolny v2 lub null 
     public ControlPoint? ControlPoint2 { get; private set; }
 
+    
+    public bool IsHidden { get; set; }
     // Ograniczenia dodaje i usuwa wyłącznie Scene, która trzyma też ich globalną listę
     private readonly List<IConstraint> _constraints = new();
     public IReadOnlyList<IConstraint> Constraints => _constraints;
@@ -148,10 +150,10 @@ public class Edge
         var b = new Vector2(EndVertex.X, EndVertex.Y);
         if (followNeighbourTangents)
         {
-            if (StartVertex.ContinuityType != ContinuityType.G0 && StartVertex.IncomingEdge is { } incoming)
+            if (StartVertex.ContinuityType != ContinuityType.G0 && StartVertex.IncomingEdge is { IsHidden: false } incoming)
                 return CircularArc.Tangent(a, b, incoming.TangentAtEnd());
 
-            if (EndVertex.ContinuityType != ContinuityType.G0 && EndVertex.OutgoingEdge is { IsArc: false } outgoing)
+            if (EndVertex.ContinuityType != ContinuityType.G0 && EndVertex.OutgoingEdge is { IsHidden: false, IsArc: false } outgoing)
                 return CircularArc.Tangent(b, a, -outgoing.TangentAtStart()).Reverse();
         }
         return CircularArc.Semicircle(a, b);

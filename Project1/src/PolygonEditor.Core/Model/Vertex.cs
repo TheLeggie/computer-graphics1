@@ -18,9 +18,15 @@ public class Vertex
     public ContinuityType ContinuityType { get; set; } = ContinuityType.G0;
     public bool IsContinuityExplicitlySet { get; set; }
 
-    public bool HasAdjacentBezier => IncomingEdge?.IsBezier == true || OutgoingEdge?.IsBezier == true;
+    public bool HasBothVisibleEdges =>
+        IncomingEdge is { IsHidden: false } &&
+        OutgoingEdge is { IsHidden: false };
 
-    public bool HasAdjacentArc => IncomingEdge?.IsArc == true || OutgoingEdge?.IsArc == true;
+    public bool HasAdjacentBezier =>
+        HasBothVisibleEdges && (IncomingEdge!.IsBezier || OutgoingEdge!.IsBezier);
+
+    public bool HasAdjacentArc =>
+        HasBothVisibleEdges && (IncomingEdge!.IsArc || OutgoingEdge!.IsArc);
 
     // Tylko przy krzywych ciągłość ma znaczenie, więc tylko wtedy jest pokazywana i edytowalna
     public bool HasAdjacentCurve => HasAdjacentBezier || HasAdjacentArc;

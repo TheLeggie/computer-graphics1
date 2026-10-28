@@ -38,10 +38,15 @@ public static class ContinuityEnforcer
     {
         foreach (var vertex in new[] { bezierEdge.StartVertex, bezierEdge.EndVertex })
         {
+            var otherEdge = OtherEdge(vertex, bezierEdge);
+            if (otherEdge is null || otherEdge.IsHidden)
+            {
+                vertex.ContinuityType = ContinuityType.G0;
+                continue;
+            }
             if (!vertex.IsContinuityExplicitlySet)
                 vertex.ContinuityType = ContinuityType.C1;
 
-            var otherEdge = OtherEdge(vertex, bezierEdge);
             if (otherEdge is { IsArc: true })
                 NormalizeArcEnds(otherEdge, preferredVertex: OppositeVertex(otherEdge, vertex));
             EnforceAt(vertex, bezierEdge);
@@ -79,7 +84,7 @@ public static class ContinuityEnforcer
         var vertex = controlPoint.AnchorVertex;
         var otherEdge = OtherEdge(vertex, controlPoint.ParentEdge);
         // łuk sam dopasowuje się do nowej stycznej
-        if (otherEdge is null || otherEdge.IsArc || vertex.ContinuityType == ContinuityType.G0)
+        if (otherEdge is null || otherEdge.IsHidden || otherEdge.IsArc || vertex.ContinuityType == ContinuityType.G0)
             return null;
         return Align(vertex, controlPoint.ParentEdge, otherEdge);
     }
@@ -129,7 +134,7 @@ public static class ContinuityEnforcer
         var incoming = vertex.IncomingEdge;
         var outgoing = vertex.OutgoingEdge;
         // przy łuku styczność zapewnia sam łuk, wyliczany z kierunku sąsiedniej krawędzi
-        if (incoming is null || outgoing is null || incoming.IsArc || outgoing.IsArc)
+        if (incoming is null || outgoing is null || incoming.IsHidden || outgoing.IsHidden || incoming.IsArc || outgoing.IsArc)
             return;
         
         if (incoming.IsBezier && outgoing.IsBezier)

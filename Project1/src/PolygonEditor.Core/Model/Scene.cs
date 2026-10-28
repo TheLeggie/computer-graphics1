@@ -24,7 +24,30 @@ public class Scene
         _polygons.Add(polygon);
         return polygon;
     }
+    
+    public bool HideEdge(Polygon polygon, Edge edge)
+    {
+        if (!polygon.CanHideEdge || !polygon.Edges.Contains(edge))
+            return false;
 
+        RemoveConstraintsOn(edge);
+        
+        
+        edge.StartVertex.ContinuityType = ContinuityType.G0;
+        edge.StartVertex.IsContinuityExplicitlySet = false;
+        edge.EndVertex.ContinuityType = ContinuityType.G0;
+        edge.EndVertex.IsContinuityExplicitlySet = false;
+
+        edge.ConvertToLine();
+        edge.IsHidden = true;
+
+        return true;
+    }
+    public void ShowAllHiddenEdges()
+    {
+        foreach (var polygon in _polygons)
+            polygon.ShowHiddenEdges();
+    }
     public void AddPolygon(Polygon polygon) => _polygons.Add(polygon);
 
     public bool RemovePolygon(Polygon polygon)
@@ -169,6 +192,8 @@ public class Scene
         {
             foreach (var edge in _polygons[i].Edges)
             {
+                if(edge.IsHidden) continue;
+                
                 foreach (var controlPoint in edge.ControlPoints)
                 {
                     float distance = controlPoint.DistanceTo(x, y);
@@ -195,6 +220,7 @@ public class Scene
         {
             foreach (var edge in _polygons[i].Edges)
             {
+                if(edge.IsHidden) continue;
                 float distance = edge.DistanceTo(x, y);
                 if (distance <= bestDistance && (best is null || distance < bestDistance))
                 {

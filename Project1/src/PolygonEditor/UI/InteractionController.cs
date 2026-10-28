@@ -24,6 +24,7 @@ public sealed class InteractionController : IDisposable
     private readonly ToolStripMenuItem _removeConstraintItem = new("Usuń ograniczenie");
     private readonly ToolStripMenuItem _removeVertexItem = new("Usuń wierzchołek");
     private readonly ToolStripMenuItem _continuityItem = new("Ciągłość w wierzchołku");
+    private readonly ToolStripMenuItem _hideEdgeItem = new("Ukryj krawędź");
     private readonly Dictionary<ContinuityType, ToolStripMenuItem> _continuityTypeItems = new();
 
     private Vertex? _draggedVertex;
@@ -52,6 +53,7 @@ public sealed class InteractionController : IDisposable
         _toArcItem.Click += (_, _) => ConvertContextEdge(EdgeType.Arc);
         _fixedLengthItem.Click += FixedLengthItem_Click;
         _perpendicularItem.Click += PerpendicularItem_Click;
+        _hideEdgeItem.Click += HideEdgeItem_Click;
         _removeVertexItem.Click += RemoveVertexItem_Click;
         foreach (var type in Enum.GetValues<ContinuityType>())
         {
@@ -64,7 +66,7 @@ public sealed class InteractionController : IDisposable
         _contextMenu.Items.AddRange(new ToolStripItem[]
         {
             _addVertexItem, _toLineItem, _toBezierItem, _toArcItem, _fixedLengthItem, _perpendicularItem, _removeConstraintItem,
-            _removeVertexItem, _continuityItem
+            _hideEdgeItem, _removeVertexItem, _continuityItem
         });
 
         _canvas.MouseDown += Canvas_MouseDown;
@@ -179,6 +181,10 @@ public sealed class InteractionController : IDisposable
         _fixedLengthItem.Visible = _contextEdge?.Edge.EdgeType == EdgeType.Line;
         _perpendicularItem.Visible = _contextEdge?.Edge.EdgeType == EdgeType.Line;
         RebuildRemoveConstraintItems();
+        
+        _hideEdgeItem.Visible = _contextEdge is not null;
+        _hideEdgeItem.Enabled = _contextEdge?.Polygon.CanHideEdge ?? false;
+        _hideEdgeItem.ToolTipText = _hideEdgeItem.Enabled ? null : "Możesz ukryc max jedną krawędź na wielokąt";
 
         _removeVertexItem.Visible = _contextVertex is not null;
         _removeVertexItem.Enabled = _contextVertex?.Polygon.CanRemoveVertex ?? false;
@@ -289,6 +295,22 @@ public sealed class InteractionController : IDisposable
         _canvas.Cursor = edge is null ? Cursors.Default : Cursors.Cross;
         PendingSelectionChanged?.Invoke(this, EventArgs.Empty);
         _canvas.Invalidate();
+    }
+    private void HideEdgeItem_Click(object? sender, EventArgs e)
+    {
+        if (_contextEdge is null)
+            return;
+
+        if (_scene.HideEdge(_contextEdge.Polygon, _contextEdge.Edge))
+        {
+            if (PendingPerpendicularEdge is not null &&
+                (!_scene.Polygons.SelectMany(p => p.Edges).Contains(PendingPerpendicularEdge) || PendingPerpendicularEdge.IsHidden))
+            {
+                CancelPendingSelection();
+            }
+            _canvas.Invalidate();
+        }
+        _contextEdge = null;
     }
 
     private void RemoveConstraint(IConstraint constraint)

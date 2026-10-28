@@ -73,20 +73,23 @@ public sealed class SceneRenderer : IDisposable
 
         foreach (var edge in polygon.Edges)
         {
-            if (edge.IsBezier)
+            if (!edge.IsHidden && edge.IsBezier)
                 DrawControlPolygon(g, edge);
         }
 
         foreach (var edge in polygon.Edges)
-            DrawEdge(g, edge);
+            if(!edge.IsHidden) DrawEdge(g, edge);
 
         foreach (var edge in polygon.Edges)
-            DrawConstraintLabel(g, edge);
+            if(!edge.IsHidden)DrawConstraintLabel(g, edge);
 
         foreach (var edge in polygon.Edges)
         {
-            foreach (var controlPoint in edge.ControlPoints)
-                DrawControlPoint(g, controlPoint);
+            if (!edge.IsHidden)
+            {
+                foreach (var controlPoint in edge.ControlPoints)
+                    DrawControlPoint(g, controlPoint);
+            }
         }
 
         foreach (var vertex in polygon.Vertices)

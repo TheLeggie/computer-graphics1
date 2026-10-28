@@ -16,7 +16,7 @@ public class Polygon
     public IReadOnlyList<Edge> Edges => _edges;
 
     public bool CanRemoveVertex => _vertices.Count > MinVertexCount;
-
+    public bool CanHideEdge => !_edges.Any(e => e.IsHidden);
     public Polygon(IEnumerable<(float X, float Y)> points)
     {
         foreach (var (x, y) in points)
@@ -26,6 +26,21 @@ public class Polygon
             throw new ArgumentException($"A polygon needs at least {MinVertexCount} vertices.", nameof(points));
 
         RebuildEdges();
+    }
+    
+    public bool HideEdge(Edge edge)
+    {
+        if (!CanHideEdge || !_edges.Contains(edge))
+            return false;
+
+        edge.IsHidden = true;
+        return true;
+    }
+    
+    public void ShowHiddenEdges()
+    {
+        foreach (var edge in _edges)
+            edge.IsHidden = false;
     }
 	/// <summary>
 	/// Przesuwa cały wielokąt o wektor (dx, dy)
@@ -80,10 +95,28 @@ public class Polygon
             return false;
 
         int incomingIndex = (index - 1 + _vertices.Count) % _vertices.Count;
-        var previous = _edges[incomingIndex].StartVertex;
-        var next = _edges[index].EndVertex;
+        
+        var incomingEdge = _edges[incomingIndex];
+        var outgoingEdge = _edges[index];
 
-        var merged = new Edge(previous, next);
+        var previous = incomingEdge.StartVertex;
+        var next = outgoingEdge.EndVertex;
+        
+        bool wasAdjacentHidden = incomingEdge.IsHidden || outgoingEdge.IsHidden;
+
+        var merged = new Edge(previous, next)
+        {
+            IsHidden = wasAdjacentHidden
+        };
+        
+        if (wasAdjacentHidden)
+        {
+            previous.ContinuityType = ContinuityType.G0;
+            previous.IsContinuityExplicitlySet = false;
+            next.ContinuityType = ContinuityType.G0;
+            next.IsContinuityExplicitlySet = false;
+        }
+        
         previous.OutgoingEdge = merged;
         next.IncomingEdge = merged;
 
