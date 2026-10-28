@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PolygonEditor.Core/PolygonEditor.Core.csproj" />
+    <Project Path="src/PolygonEditor/PolygonEditor.csproj" />
+  </Folder>
+</Solution>
