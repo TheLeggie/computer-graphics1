@@ -15,6 +15,8 @@ public class Polygon
     public IReadOnlyList<Vertex> Vertices => _vertices;
     public IReadOnlyList<Edge> Edges => _edges;
 
+    public bool IsBsplineOn { get; set; } = true;
+
     public bool CanRemoveVertex => _vertices.Count > MinVertexCount;
     public bool CanHideEdge => !_edges.Any(e => e.IsHidden);
     public Polygon(IEnumerable<(float X, float Y)> points)

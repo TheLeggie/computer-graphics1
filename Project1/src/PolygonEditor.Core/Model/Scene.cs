@@ -48,6 +48,11 @@ public class Scene
         foreach (var polygon in _polygons)
             polygon.ShowHiddenEdges();
     }
+
+    public void ShowBsplines()
+    {
+        
+    }
     public void AddPolygon(Polygon polygon) => _polygons.Add(polygon);
 
     public bool RemovePolygon(Polygon polygon)

@@ -102,8 +102,22 @@ public sealed class MainForm : Form
             _scene.ShowAllHiddenEdges();
             _canvas.Invalidate();
         };
+
+        var showBsplineItem = new ToolStripMenuItem("Pokaż B-spline")
+        {
+            Checked = true,
+            CheckOnClick = true
+        };
+        showBsplineItem.CheckedChanged += (_, _) =>
+        {
+            foreach (var polygon in _scene.Polygons)
+                polygon.IsBsplineOn = showBsplineItem.Checked;
+            _canvas.Invalidate();
+        };
+        
         menu.Items.Add(helpItem);
         menu.Items.Add(showEdgesItem);
+        menu.Items.Add(showBsplineItem);
         MainMenuStrip = menu;
         return menu;
     }

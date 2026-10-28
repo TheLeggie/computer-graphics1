@@ -1,6 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Numerics;
 using PolygonEditor.Algorithms;
+using PolygonEditor.Core.Geometry;
 using PolygonEditor.Core.Model;
 
 namespace PolygonEditor.Rendering;
@@ -15,6 +16,8 @@ public sealed class SceneRenderer : IDisposable
     private static readonly Color BackgroundColor = Color.White;
     private static readonly Color EdgeColor = Color.Black;
     private static readonly Color ControlPolygonColor = Color.Gray;
+    private static readonly Color BSplineColorRed = Color.Red;
+    private static readonly Color BSplineColorBlue = Color.Blue;
 
     private readonly Pen _edgePen = new(EdgeColor, 1f);
     private readonly Pen _controlPolygonPen = new(ControlPolygonColor, 1f)
@@ -30,7 +33,10 @@ public sealed class SceneRenderer : IDisposable
     private readonly Font _constraintLabelFont = new("Segoe UI Symbol", 8f, FontStyle.Bold);
     private readonly Pen _highlightPen = new(Color.FromArgb(140, Color.DeepSkyBlue), 6f);
     private readonly Brush _constraintLabelBrush = new SolidBrush(Color.Firebrick);
-
+    private readonly Pen _bsplineRedPen = new(BSplineColorRed, 2f);
+    private readonly Pen _bsplineBluePen = new(BSplineColorBlue, 2f);
+    private readonly Brush _bsplinePointBrush = new SolidBrush(Color.Crimson);
+    private readonly Pen _bsplinePointOutlinePen = new(Color.DarkRed, 1f);
     private DirectBitmap? _buffer;
 
     public LineDrawingMode LineMode { get; set; } = LineDrawingMode.Library;
@@ -90,6 +96,9 @@ public sealed class SceneRenderer : IDisposable
                 foreach (var controlPoint in edge.ControlPoints)
                     DrawControlPoint(g, controlPoint);
             }
+            
+            if (polygon.IsBsplineOn)
+                DrawBSpline(g, polygon);
         }
 
         foreach (var vertex in polygon.Vertices)
@@ -163,6 +172,66 @@ public sealed class SceneRenderer : IDisposable
             g.DrawLine(dashed ? _controlPolygonPen : _edgePen, x1, y1, x2, y2);
         }
     }
+    
+    private void DrawBSpline(Graphics g, Polygon polygon)
+    {
+        var segments = BSplineLogic.GetBezierSegments(polygon);
+        if (segments.Count == 0)
+            return;
+        // przerywane linie
+        foreach (var seg in segments)
+        {
+            DrawLine(g, seg.V0.X, seg.V0.Y, seg.V1.X, seg.V1.Y, dashed: true);
+            DrawLine(g, seg.V1.X, seg.V1.Y, seg.V2.X, seg.V2.Y, dashed: true);
+            DrawLine(g, seg.V2.X, seg.V2.Y, seg.V3.X, seg.V3.Y, dashed: true);
+        }
+
+        // krzywe beziera 
+        for (int i = 0; i < segments.Count; i++)
+        {
+            bool isRed = i % 2 == 0;
+            var points = segments[i].ToCubicBezier().ComputePoints();
+            DrawColoredPolyline(g, points, isRed ? BSplineColorRed : BSplineColorBlue, isRed ? _bsplineRedPen : _bsplineBluePen);
+        }
+
+        // punkty kontrolne
+        foreach (var seg in segments)
+        {
+            DrawBSplineControlPoint(g, seg.V0);
+            DrawBSplineControlPoint(g, seg.V1);
+            DrawBSplineControlPoint(g, seg.V2);
+            DrawBSplineControlPoint(g, seg.V3);
+        }
+    }
+
+    private void DrawColoredPolyline(Graphics g, Vector2[] points, Color color, Pen pen)
+    {
+        for (int i = 1; i < points.Length; i++)
+        {
+            if (LineMode == LineDrawingMode.Bresenham && _buffer is not null)
+            {
+                BresenhamLine.Draw(
+                    _buffer,
+                    (int)MathF.Round(points[i - 1].X), (int)MathF.Round(points[i - 1].Y),
+                    (int)MathF.Round(points[i].X), (int)MathF.Round(points[i].Y),
+                    color);
+            }
+            else
+            {
+                g.DrawLine(pen, points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y);
+            }
+        }
+    }
+
+    private void DrawBSplineControlPoint(Graphics g, Vector2 point)
+    {
+        const float halfSize = 3.5f;
+        float x = point.X - halfSize;
+        float y = point.Y - halfSize;
+        float size = 2f * halfSize;
+        g.FillRectangle(_bsplinePointBrush, x, y, size, size);
+        g.DrawRectangle(_bsplinePointOutlinePen, x, y, size, size);
+    }
 
 	/// <summary>
     /// Etykiety wszystkich ograniczeń krawędzi obok jej środka
@@ -235,5 +304,9 @@ public sealed class SceneRenderer : IDisposable
         _constraintLabelBrush.Dispose();
         _constraintLabelFont.Dispose();
         _highlightPen.Dispose();
+        _bsplineBluePen.Dispose();
+        _bsplineRedPen.Dispose();
+        _bsplinePointBrush.Dispose();
+        _bsplinePointOutlinePen.Dispose();
     }
 }
