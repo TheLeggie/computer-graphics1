@@ -30,12 +30,27 @@
         {
             drawingPanel = new DrawingPanel();
             controlPanel = new Panel();
+            showFilledCheckBox = new CheckBox();
             showMeshCheckBox = new CheckBox();
             showPolygonsCheckBox = new CheckBox();
             divisionsTrackBar = new TrackBar();
             divisionsLabel = new Label();
+            kdLabel = new Label();
+            kdTrackBar = new TrackBar();
+            ksLabel = new Label();
+            ksTrackBar = new TrackBar();
+            mLabel = new Label();
+            mTrackBar = new TrackBar();
+            lightZLabel = new Label();
+            lightZTrackBar = new TrackBar();
+            lightColorButton = new Button();
+            lightColorDialog = new ColorDialog();
             controlPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)kdTrackBar).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)ksTrackBar).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)mTrackBar).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)lightZTrackBar).BeginInit();
             SuspendLayout();
             // 
             // drawingPanel
@@ -49,6 +64,17 @@
             // 
             // controlPanel
             // 
+            controlPanel.AutoScroll = true;
+            controlPanel.Controls.Add(lightColorButton);
+            controlPanel.Controls.Add(lightZTrackBar);
+            controlPanel.Controls.Add(lightZLabel);
+            controlPanel.Controls.Add(mTrackBar);
+            controlPanel.Controls.Add(mLabel);
+            controlPanel.Controls.Add(ksTrackBar);
+            controlPanel.Controls.Add(ksLabel);
+            controlPanel.Controls.Add(kdTrackBar);
+            controlPanel.Controls.Add(kdLabel);
+            controlPanel.Controls.Add(showFilledCheckBox);
             controlPanel.Controls.Add(showMeshCheckBox);
             controlPanel.Controls.Add(showPolygonsCheckBox);
             controlPanel.Controls.Add(divisionsTrackBar);
@@ -59,6 +85,19 @@
             controlPanel.Padding = new Padding(8);
             controlPanel.Size = new Size(200, 750);
             controlPanel.TabIndex = 1;
+            // 
+            // showFilledCheckBox
+            // 
+            showFilledCheckBox.AutoSize = true;
+            showFilledCheckBox.Checked = true;
+            showFilledCheckBox.CheckState = CheckState.Checked;
+            showFilledCheckBox.Location = new Point(11, 140);
+            showFilledCheckBox.Name = "showFilledCheckBox";
+            showFilledCheckBox.Size = new Size(138, 19);
+            showFilledCheckBox.TabIndex = 4;
+            showFilledCheckBox.Text = "Wypełnione trójkąty";
+            showFilledCheckBox.UseVisualStyleBackColor = true;
+            showFilledCheckBox.CheckedChanged += showFilledCheckBox_CheckedChanged;
             // 
             // showMeshCheckBox
             // 
@@ -107,6 +146,104 @@
             divisionsLabel.TabIndex = 0;
             divisionsLabel.Text = "Dokładność triangulacji: 16";
             // 
+            // kdLabel
+            // 
+            kdLabel.AutoSize = true;
+            kdLabel.Location = new Point(11, 175);
+            kdLabel.Name = "kdLabel";
+            kdLabel.Size = new Size(50, 15);
+            kdLabel.TabIndex = 5;
+            kdLabel.Text = "kd: 0.70";
+            // 
+            // kdTrackBar
+            // 
+            kdTrackBar.Location = new Point(11, 195);
+            kdTrackBar.Maximum = 100;
+            kdTrackBar.Name = "kdTrackBar";
+            kdTrackBar.Size = new Size(178, 45);
+            kdTrackBar.TabIndex = 6;
+            kdTrackBar.TickFrequency = 10;
+            kdTrackBar.Value = 70;
+            kdTrackBar.ValueChanged += lightingTrackBar_ValueChanged;
+            // 
+            // ksLabel
+            // 
+            ksLabel.AutoSize = true;
+            ksLabel.Location = new Point(11, 245);
+            ksLabel.Name = "ksLabel";
+            ksLabel.Size = new Size(50, 15);
+            ksLabel.TabIndex = 7;
+            ksLabel.Text = "ks: 0.50";
+            // 
+            // ksTrackBar
+            // 
+            ksTrackBar.Location = new Point(11, 265);
+            ksTrackBar.Maximum = 100;
+            ksTrackBar.Name = "ksTrackBar";
+            ksTrackBar.Size = new Size(178, 45);
+            ksTrackBar.TabIndex = 8;
+            ksTrackBar.TickFrequency = 10;
+            ksTrackBar.Value = 50;
+            ksTrackBar.ValueChanged += lightingTrackBar_ValueChanged;
+            // 
+            // mLabel
+            // 
+            mLabel.AutoSize = true;
+            mLabel.Location = new Point(11, 315);
+            mLabel.Name = "mLabel";
+            mLabel.Size = new Size(40, 15);
+            mLabel.TabIndex = 9;
+            mLabel.Text = "m: 20";
+            // 
+            // mTrackBar
+            // 
+            mTrackBar.Location = new Point(11, 335);
+            mTrackBar.Maximum = 100;
+            mTrackBar.Minimum = 1;
+            mTrackBar.Name = "mTrackBar";
+            mTrackBar.Size = new Size(178, 45);
+            mTrackBar.TabIndex = 10;
+            mTrackBar.TickFrequency = 10;
+            mTrackBar.Value = 20;
+            mTrackBar.ValueChanged += lightingTrackBar_ValueChanged;
+            // 
+            // lightZLabel
+            // 
+            lightZLabel.AutoSize = true;
+            lightZLabel.Location = new Point(11, 385);
+            lightZLabel.Name = "lightZLabel";
+            lightZLabel.Size = new Size(80, 15);
+            lightZLabel.TabIndex = 11;
+            lightZLabel.Text = "z światła: 2.0";
+            // 
+            // lightZTrackBar
+            // 
+            lightZTrackBar.Location = new Point(11, 405);
+            lightZTrackBar.Maximum = 50;
+            lightZTrackBar.Minimum = 5;
+            lightZTrackBar.Name = "lightZTrackBar";
+            lightZTrackBar.Size = new Size(178, 45);
+            lightZTrackBar.TabIndex = 12;
+            lightZTrackBar.TickFrequency = 5;
+            lightZTrackBar.Value = 20;
+            lightZTrackBar.ValueChanged += lightingTrackBar_ValueChanged;
+            // 
+            // lightColorButton
+            // 
+            lightColorButton.BackColor = Color.White;
+            lightColorButton.Location = new Point(11, 455);
+            lightColorButton.Name = "lightColorButton";
+            lightColorButton.Size = new Size(178, 27);
+            lightColorButton.TabIndex = 13;
+            lightColorButton.Text = "Kolor światła";
+            lightColorButton.UseVisualStyleBackColor = false;
+            lightColorButton.Click += lightColorButton_Click;
+            // 
+            // lightColorDialog
+            // 
+            lightColorDialog.Color = Color.White;
+            lightColorDialog.FullOpen = true;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -119,6 +256,10 @@
             controlPanel.ResumeLayout(false);
             controlPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).EndInit();
+            ((System.ComponentModel.ISupportInitialize)kdTrackBar).EndInit();
+            ((System.ComponentModel.ISupportInitialize)ksTrackBar).EndInit();
+            ((System.ComponentModel.ISupportInitialize)mTrackBar).EndInit();
+            ((System.ComponentModel.ISupportInitialize)lightZTrackBar).EndInit();
             ResumeLayout(false);
         }
 
@@ -130,5 +271,16 @@
         private TrackBar divisionsTrackBar;
         private CheckBox showPolygonsCheckBox;
         private CheckBox showMeshCheckBox;
+        private CheckBox showFilledCheckBox;
+        private Label kdLabel;
+        private TrackBar kdTrackBar;
+        private Label ksLabel;
+        private TrackBar ksTrackBar;
+        private Label mLabel;
+        private TrackBar mTrackBar;
+        private Label lightZLabel;
+        private TrackBar lightZTrackBar;
+        private Button lightColorButton;
+        private ColorDialog lightColorDialog;
     }
 }

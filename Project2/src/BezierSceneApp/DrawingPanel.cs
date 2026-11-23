@@ -12,7 +12,14 @@ namespace BezierSceneApp
         private const float PointRadius = 3f;
         // czulosc obrotu myszy [rad / px]
         private const float RotationSensitivity = 0.01f;
+        // jednolite kolory obiektow I_O (do Slice 5), cyklicznie dla kolejnych powierzchni
+        private static readonly Vector3[] SurfaceColors =
+        {
+            LightSettings.ToVector(Color.Gold), LightSettings.ToVector(Color.SteelBlue),
+            LightSettings.ToVector(Color.IndianRed), LightSettings.ToVector(Color.MediumSeaGreen)
+        };
 
+        private readonly TriangleRasterizer rasterizer = new();
         private Point lastMouse;
 
         public DrawingPanel()
@@ -34,22 +41,42 @@ namespace BezierSceneApp
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowMesh { get; set; } = true;
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool ShowFilled { get; set; } = true;
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public LightSettings Light { get; } = new();
+
+        // warstwy: tlo -> wypelnione trojkaty -> siatka -> wieloboki -> osie
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            if (Scene != null)
+            {
+                if (ShowFilled)
+                    DrawFilled(g, Scene);
+
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                if (ShowMesh)
+                    foreach (Mesh m in Scene.Meshes)
+                        DrawMesh(g, m);
+                if (ShowPolygons)
+                    foreach (BezierSurface s in Scene.Surfaces)
+                        DrawControlPolygon(g, s);
+            }
 
             DrawAxes(g);
-            if (Scene == null)
-                return;
+        }
 
-            if (ShowMesh)
-                foreach (Mesh m in Scene.Meshes)
-                    DrawMesh(g, m);
-            if (ShowPolygons)
-                foreach (BezierSurface s in Scene.Surfaces)
-                    DrawControlPolygon(g, s);
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                rasterizer.Dispose();
+            base.Dispose(disposing);
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -95,6 +122,32 @@ namespace BezierSceneApp
             g.DrawLine(pen, o.X, 0, o.X, ClientSize.Height);
             g.DrawString("+X", Font, Brushes.Gray, ToScreen(new Vector3(1f, 0f, 0f)));
             g.DrawString("+Y", Font, Brushes.Gray, ToScreen(new Vector3(0f, 1f, 0f)));
+        }
+
+        private void DrawFilled(Graphics g, Scene scene)
+        {
+            int w = ClientSize.Width, h = ClientSize.Height;
+            if (w <= 0 || h <= 0) // np. zminimalizowane okno
+                return;
+
+            rasterizer.EnsureSize(w, h);
+            rasterizer.Clear(BackColor.ToArgb());
+            for (int i = 0; i < scene.Meshes.Count; i++)
+            {
+                Vector3 color = SurfaceColors[i % SurfaceColors.Length];
+                foreach (Triangle t in scene.Meshes[i].Triangles)
+                    rasterizer.FillTriangle(ToScreenDepth(t.V0.RotP), ToScreenDepth(t.V1.RotP), ToScreenDepth(t.V2.RotP),
+                        t.V0, t.V1, t.V2, color, Light);
+            }
+            rasterizer.CopyToBitmap();
+            g.DrawImageUnscaled(rasterizer.Bitmap!, 0, 0);
+        }
+
+        // (x, y) ekranowe jak w ToScreen, z bez zmian (glebokosc do Z-buffera)
+        private Vector3 ToScreenDepth(Vector3 p)
+        {
+            PointF s = ToScreen(p);
+            return new Vector3(s.X, s.Y, p.Z);
         }
 
         private void DrawMesh(Graphics g, Mesh mesh)
