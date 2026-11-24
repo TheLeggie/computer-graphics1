@@ -12,12 +12,6 @@ namespace BezierSceneApp
         private const float PointRadius = 3f;
         // czulosc obrotu myszy [rad / px]
         private const float RotationSensitivity = 0.01f;
-        // jednolite kolory obiektow I_O (do Slice 5), cyklicznie dla kolejnych powierzchni
-        private static readonly Vector3[] SurfaceColors =
-        {
-            LightSettings.ToVector(Color.Gold), LightSettings.ToVector(Color.SteelBlue),
-            LightSettings.ToVector(Color.IndianRed), LightSettings.ToVector(Color.MediumSeaGreen)
-        };
 
         private readonly TriangleRasterizer rasterizer = new();
         private Point lastMouse;
@@ -132,12 +126,14 @@ namespace BezierSceneApp
 
             rasterizer.EnsureSize(w, h);
             rasterizer.Clear(BackColor.ToArgb());
+            TextureData? normalMap = scene.UseNormalMap ? scene.NormalMap : null;
             for (int i = 0; i < scene.Meshes.Count; i++)
             {
-                Vector3 color = SurfaceColors[i % SurfaceColors.Length];
+                SurfaceAppearance look = scene.Appearances[i];
+                TextureData? texture = look.UseTexture ? look.Texture : null;
                 foreach (Triangle t in scene.Meshes[i].Triangles)
                     rasterizer.FillTriangle(ToScreenDepth(t.V0.RotP), ToScreenDepth(t.V1.RotP), ToScreenDepth(t.V2.RotP),
-                        t.V0, t.V1, t.V2, color, Light);
+                        t.V0, t.V1, t.V2, look.SolidColor, texture, normalMap, Light);
             }
             rasterizer.CopyToBitmap();
             g.DrawImageUnscaled(rasterizer.Bitmap!, 0, 0);

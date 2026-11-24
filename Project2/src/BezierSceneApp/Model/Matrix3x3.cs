@@ -20,6 +20,11 @@ namespace BezierSceneApp
 
         public static Matrix3x3 Identity => new(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
+        public static Matrix3x3 FromColumns(Vector3 c0, Vector3 c1, Vector3 c2) => new(
+            c0.X, c1.X, c2.X,
+            c0.Y, c1.Y, c2.Y,
+            c0.Z, c1.Z, c2.Z);
+
         public static Matrix3x3 CreateRotationX(float angle)
         {
             float c = MathF.Cos(angle), s = MathF.Sin(angle);

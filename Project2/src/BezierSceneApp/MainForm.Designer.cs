@@ -45,7 +45,18 @@
             lightZTrackBar = new TrackBar();
             lightColorButton = new Button();
             lightColorDialog = new ColorDialog();
+            surfaceComboBox = new ComboBox();
+            objectColorGroupBox = new GroupBox();
+            solidColorRadioButton = new RadioButton();
+            textureRadioButton = new RadioButton();
+            objectColorButton = new Button();
+            loadTextureButton = new Button();
+            useNormalMapCheckBox = new CheckBox();
+            loadNormalMapButton = new Button();
+            objectColorDialog = new ColorDialog();
+            imageOpenFileDialog = new OpenFileDialog();
             controlPanel.SuspendLayout();
+            objectColorGroupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).BeginInit();
             ((System.ComponentModel.ISupportInitialize)kdTrackBar).BeginInit();
             ((System.ComponentModel.ISupportInitialize)ksTrackBar).BeginInit();
@@ -65,6 +76,10 @@
             // controlPanel
             // 
             controlPanel.AutoScroll = true;
+            controlPanel.Controls.Add(loadNormalMapButton);
+            controlPanel.Controls.Add(useNormalMapCheckBox);
+            controlPanel.Controls.Add(objectColorGroupBox);
+            controlPanel.Controls.Add(surfaceComboBox);
             controlPanel.Controls.Add(lightColorButton);
             controlPanel.Controls.Add(lightZTrackBar);
             controlPanel.Controls.Add(lightZLabel);
@@ -244,6 +259,100 @@
             lightColorDialog.Color = Color.White;
             lightColorDialog.FullOpen = true;
             // 
+            // surfaceComboBox
+            // 
+            surfaceComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            surfaceComboBox.Location = new Point(11, 495);
+            surfaceComboBox.Name = "surfaceComboBox";
+            surfaceComboBox.Size = new Size(178, 23);
+            surfaceComboBox.TabIndex = 14;
+            surfaceComboBox.SelectedIndexChanged += surfaceComboBox_SelectedIndexChanged;
+            // 
+            // objectColorGroupBox
+            // 
+            objectColorGroupBox.Controls.Add(loadTextureButton);
+            objectColorGroupBox.Controls.Add(objectColorButton);
+            objectColorGroupBox.Controls.Add(textureRadioButton);
+            objectColorGroupBox.Controls.Add(solidColorRadioButton);
+            objectColorGroupBox.Location = new Point(11, 525);
+            objectColorGroupBox.Name = "objectColorGroupBox";
+            objectColorGroupBox.Size = new Size(178, 135);
+            objectColorGroupBox.TabIndex = 15;
+            objectColorGroupBox.TabStop = false;
+            objectColorGroupBox.Text = "Kolor obiektu";
+            // 
+            // solidColorRadioButton
+            // 
+            solidColorRadioButton.AutoSize = true;
+            solidColorRadioButton.Checked = true;
+            solidColorRadioButton.Location = new Point(8, 22);
+            solidColorRadioButton.Name = "solidColorRadioButton";
+            solidColorRadioButton.Size = new Size(110, 19);
+            solidColorRadioButton.TabIndex = 0;
+            solidColorRadioButton.TabStop = true;
+            solidColorRadioButton.Text = "Jednolity kolor";
+            solidColorRadioButton.UseVisualStyleBackColor = true;
+            // 
+            // textureRadioButton
+            // 
+            textureRadioButton.AutoSize = true;
+            textureRadioButton.Location = new Point(8, 45);
+            textureRadioButton.Name = "textureRadioButton";
+            textureRadioButton.Size = new Size(71, 19);
+            textureRadioButton.TabIndex = 1;
+            textureRadioButton.Text = "Tekstura";
+            textureRadioButton.UseVisualStyleBackColor = true;
+            textureRadioButton.CheckedChanged += textureRadioButton_CheckedChanged;
+            // 
+            // objectColorButton
+            // 
+            objectColorButton.Location = new Point(8, 70);
+            objectColorButton.Name = "objectColorButton";
+            objectColorButton.Size = new Size(162, 27);
+            objectColorButton.TabIndex = 2;
+            objectColorButton.Text = "Kolor obiektu";
+            objectColorButton.UseVisualStyleBackColor = false;
+            objectColorButton.Click += objectColorButton_Click;
+            // 
+            // loadTextureButton
+            // 
+            loadTextureButton.Location = new Point(8, 100);
+            loadTextureButton.Name = "loadTextureButton";
+            loadTextureButton.Size = new Size(162, 27);
+            loadTextureButton.TabIndex = 3;
+            loadTextureButton.Text = "Wczytaj teksturę...";
+            loadTextureButton.UseVisualStyleBackColor = true;
+            loadTextureButton.Click += loadTextureButton_Click;
+            // 
+            // useNormalMapCheckBox
+            // 
+            useNormalMapCheckBox.AutoSize = true;
+            useNormalMapCheckBox.Location = new Point(11, 670);
+            useNormalMapCheckBox.Name = "useNormalMapCheckBox";
+            useNormalMapCheckBox.Size = new Size(118, 19);
+            useNormalMapCheckBox.TabIndex = 16;
+            useNormalMapCheckBox.Text = "Mapa normalnych";
+            useNormalMapCheckBox.UseVisualStyleBackColor = true;
+            useNormalMapCheckBox.CheckedChanged += useNormalMapCheckBox_CheckedChanged;
+            // 
+            // loadNormalMapButton
+            // 
+            loadNormalMapButton.Location = new Point(11, 695);
+            loadNormalMapButton.Name = "loadNormalMapButton";
+            loadNormalMapButton.Size = new Size(178, 27);
+            loadNormalMapButton.TabIndex = 17;
+            loadNormalMapButton.Text = "Wczytaj NormalMap...";
+            loadNormalMapButton.UseVisualStyleBackColor = true;
+            loadNormalMapButton.Click += loadNormalMapButton_Click;
+            // 
+            // objectColorDialog
+            // 
+            objectColorDialog.FullOpen = true;
+            // 
+            // imageOpenFileDialog
+            // 
+            imageOpenFileDialog.Filter = "Obrazy (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -253,6 +362,8 @@
             Controls.Add(controlPanel);
             Name = "MainForm";
             Text = "Bezier Scene";
+            objectColorGroupBox.ResumeLayout(false);
+            objectColorGroupBox.PerformLayout();
             controlPanel.ResumeLayout(false);
             controlPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).EndInit();
@@ -282,5 +393,15 @@
         private TrackBar lightZTrackBar;
         private Button lightColorButton;
         private ColorDialog lightColorDialog;
+        private ComboBox surfaceComboBox;
+        private GroupBox objectColorGroupBox;
+        private RadioButton solidColorRadioButton;
+        private RadioButton textureRadioButton;
+        private Button objectColorButton;
+        private Button loadTextureButton;
+        private CheckBox useNormalMapCheckBox;
+        private Button loadNormalMapButton;
+        private ColorDialog objectColorDialog;
+        private OpenFileDialog imageOpenFileDialog;
     }
 }

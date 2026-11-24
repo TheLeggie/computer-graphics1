@@ -73,95 +73,114 @@ Po zakończeniu i uruchomieniu danego slice'a zaktualizuj ten plik (`guidelines.
   - układ 3D jest prawoskrętny: `+X` w prawo, `+Y` w górę, `+Z` w stronę obserwatora (wektor do obserwatora $V = [0, 0, 1]$),
   - obszar rysowania to panel WinForms z `DoubleBuffered = true`, początkiem układu współrzędnych `(0, 0)` na jego środku i osią `Y` skierowaną w górę.
 
-## 5. Aktualny etap: SLICE 4 — Model oświetlenia (Lambert + zwierciadlane) i interpolacja normalnych
+## 5. Aktualny etap: SLICE 5 — Kolor/tekstura per powierzchnia ($I_O$) i mapa wektorów normalnych (NormalMap)
 
-### Cel Slice 4
-Rozszerzyć istniejący rasteryzer AET + Z-buffer o wyznaczanie dokładnego koloru każdego widocznego piksela wewnątrz trójkąta na podstawie **interpolacji wektorów normalnych** $N$ i pozycji $P_{3D}$ przez współrzędne barycentryczne oraz dwustronnego modelu oświetlenia (składowa rozproszona Lamberta + składowa zwierciadlana, bez ambient) dla statycznego punktowego źródła światła, wraz z suwakami $k_d, k_s, m$, suwakiem wysokości $z$ światła oraz wyborem koloru światła $I_L$.
+### Cel Slice 5
 
-### Zakres prac w Slice 4
+Umożliwić niezależny wybór źródła koloru obiektu $I_O$ dla każdej powierzchni (jednolity kolor lub tekstura z obrazu mapowana przez parametry $(u, v) \in [0, 1]^2$) oraz dodać opcjonalną modyfikację wektora normalnego na podstawie wczytanej mapy wektorów normalnych (**NormalMap**) w przestrzeni stycznej $[P_u, P_v, N_{\text{powierzchni}}]$.
 
-#### 1. Interpolacja atrybutów w rasteryzerze (`TriangleRasterizer`)
-- Rozszerz `FillTriangle` tak, aby oprócz ekranowych współrzędnych wierzchołków $(x_A, y_A), (x_B, y_B), (x_C, y_C)$ otrzymywał wierzchołki trójkąta (`Vertex` lub ich obrócone `RotP` i `RotN`) oraz parametry oświetlenia i kolor obiektu $I_O$ (zapisany jako `Vector3` z zakresu $[0, 1]$).
-- **Kolejność obliczeń w `FillRow` (wydajność):**
-  1. Wylicz wagi barycentryczne $(\alpha, \beta, \gamma)$ i głębokość $z = \alpha z_A + \beta z_B + \gamma z_C$.
-  2. Wykonaj **test Z-buffera** (`if (z > zBuffer[idx])`). Jeśli piksel przegrywa test głębokości — natychmiast przejdź do kolejnego `x` (nie licz normalnych ani oświetlenia dla zasłoniętych pikseli).
-  3. Dopiero dla piksela wygrywającego test głębokości zapisz `zBuffer[idx] = z` i wylicz atrybuty w punkcie $P$:
-     - pozycja 3D punktu w jednostkach sceny (taka sama przestrzeń jak `RotP` i pozycja światła):
-       $$P_{3D} = \alpha \cdot P_A + \beta \cdot P_B + \gamma \cdot P_C$$
-     - zinterpolowany wektor normalny (obowiązkowo znormalizowany do długości 1):
-       $$N_{\text{raw}} = \alpha \cdot N_A + \beta \cdot N_B + \gamma \cdot N_C, \qquad N = \text{normalize}(N_{\text{raw}})$$
-       (z zabezpieczeniem na przypadek $\|N_{\text{raw}}\|^2 < 10^{-12} \implies N = (0, 0, 1)$).
-- Zachowaj **0 alokacji sterty** wewnątrz `FillTriangle` / `FillRow` (używaj wyłącznie typów wartościowych: `Vector3`, `struct`).
+### Zakres prac w Slice 5
 
-#### 2. Model oświetlenia (składowa rozproszona Lamberta + zwierciadlana)
-- Wyznaczaj kolor piksela w osobnej, prostej klasie/strukturze (np. `LightSettings` + metoda licząca kolor lub `PhongShading`) z równania z treści zadania (**bez** składowej ambient $k_a$), osobno dla każdej składowej koloru $c \in \{R, G, B\}$ w zakresie $[0, 1]$:
-  $$I_c = k_d \cdot I_{L,c} \cdot I_{O,c} \cdot \cos(\angle(N, L)) + k_s \cdot I_{L,c} \cdot I_{O,c} \cdot \cos^m(\angle(V, R))$$
-- **Wektory (wszystkie muszą być wersorami — długość 1):**
-  - $V = (0, 0, 1)$ — stały wersor wskazujący w stronę obserwatora,
-  - $L = \text{normalize}(P_{\text{światła}} - P_{3D})$ — wersor od punktu na powierzchni **do** źródła światła (gdy $\|P_{\text{światła}} - P_{3D}\|^2 < 10^{-12}$, przyjmij $L = (0, 0, 1)$),
-  - $N$ — znormalizowany, zinterpolowany wektor normalny w punkcie $P$.
-- **Dwustronność powierzchni (obsługa obu stron powierzchni):**
-  - Zgodnie z uwagą w zadaniu należy uwzględnić obie strony powierzchni (w `data/surfaces.txt` początkowe $P_u \times P_v$ wskazują w stronę $-z$).
-  - Jeśli zinterpolowany wektor normalny wskazuje od obserwatora, tzn. $\langle N, V \rangle < 0$ (równoważnie $N_z < 0$), **odwróć jego zwrot**: $N = -N$. Dzięki temu $N$ jest zawsze skierowany na stronę powierzchni widoczną dla obserwatora.
-- **Wyznaczenie cosinusów i wektora odbitego $R$:**
-  - $\text{cosNL} = \langle N, L \rangle = N_x L_x + N_y L_y + N_z L_z$,
-  - jeśli $\text{cosNL} \le 0$ (źródło światła jest za widoczną stroną powierzchni), punkt jest w cieniu: $I = (0, 0, 0)$,
-  - jeśli $\text{cosNL} > 0$:
-    - wyznacz wersor odbity:
-      $$R = 2 \cdot \langle N, L \rangle \cdot N - L$$
-      (dla bezpieczeństwa numerycznego można go znormalizować lub utrzymać przy znormalizowanych $N, L$),
-    - $\text{cosVR} = \max(0, \langle V, R \rangle) = \max(0, R_z)$ (ponieważ $V = (0, 0, 1)$; zaciskanie $\ge 0$ zapobiega ujemnym kolorom dla nieparzystych $m$ i fałszywym refleksom z tyłu dla parzystych $m$),
-    - $\text{spec} = (\text{cosVR} > 0) \ ? \ \text{MathF.Pow}(\text{cosVR}, m) : 0$,
-    - oblicz natężenie (w C# iloczyn po składowych `I_L * I_O` na `Vector3`):
-      $$I = (I_L \odot I_O) \cdot (k_d \cdot \text{cosNL} + k_s \cdot \text{spec})$$
-- **Konwersja wyniku na `int` ARGB:**
-  - dopiero na końcu przelicz składowe $I_R, I_G, I_B$ z $[0, 1]$ na zakres `0..255` i ogranicz (clamp) do `[0, 255]`:
-    `int r = Math.Clamp((int)(color.X * 255f + 0.5f), 0, 255);` (analogicznie `g`, `b`),
-  - złóż piksel jako `(255 << 24) | (r << 16) | (g << 8) | b`.
+#### 1. Szybki odczyt obrazów (`TextureData` / `PixelMap` — bez `Bitmap.GetPixel`)
 
-#### 3. Statyczne źródło światła (tymczasowe dla Slice 4) i kolory obiektów
-- **Położenie źródła światła:** na płaszczyźnie $z = \text{const}$ w jednostkach sceny: $P_{\text{światła}} = (0, 0, z_L)$, z domyślnym $z_L = 2.0$ (regulowane suwakiem w zakresie `0.5`–`5.0`).
-- **Kolor światła $I_L$:** domyślnie biały `(1, 1, 1)` (`Color.White`), zmieniany przez `ColorDialog`.
-- **Kolor obiektu $I_O$:** w Slice 4 pozostaje jednolity na powierzchnię z dotychczasowej palety (`Gold`, `SteelBlue`, `IndianRed`, `MediumSeaGreen` przeliczone na `Vector3` w $[0, 1]$); niezależny wybór kolor/tekstura per powierzchnia wejdzie w Slice 5.
+- Utwórz prostą klasę (np. `Model/TextureData.cs`) wczytującą obraz z pliku (`png`, `jpg`, `bmp`) jednorazowo przez `Bitmap` + `LockBits` + `Marshal.Copy` do płaskiej tablicy `Vector3[]` o rozmiarze `Width * Height` (zwalniając tymczasowy obiekt `Bitmap` przez `using` zaraz po skopiowaniu pikseli — zero wycieków GDI+):
+  - **Dla tekstury koloru ($I_O$):** zdekoduj każdy piksel z `0..255` na `Vector3(R / 255f, G / 255f, B / 255f)` w zakresie $[0, 1]$.
+  - **Dla mapy normalnych (NormalMap):** zdekoduj każdy piksel z `0..255` na wersor $N_{\text{tekstury}} \in [-1, +1]^3$:
+    $$N_x = \frac{2R}{255} - 1, \qquad N_y = \frac{2G}{255} - 1, \qquad N_z = \frac{2B}{255} - 1$$
+    i znormalizuj wektor przy ładowaniu (dla `RGB(127, 127, 255)` daje to $\approx (0, 0, 1)$, dla niebieskiego kanału `128..255` składowa $N_z > 0$; w razie zdegenerowanego wektora zerowego podstaw `(0, 0, 1)`).
+- **Próbkowanie `Sample(float u, float v)`:**
+  - zaciśnij $(u, v)$ do $[0, 1]$ (`Math.Clamp`), ponieważ wagi barycentryczne na krawędzi trójkąta mogą minimalnie wykraczać poza $[0, 1]$,
+  - przeskaluj na indeksy pikseli obrazu: `tx = Math.Clamp((int)(u * (Width - 1) + 0.5f), 0, Width - 1)` oraz `ty = Math.Clamp((int)((1f - v) * (Height - 1) + 0.5f), 0, Height - 1)` (lub konsekwentnie `v` — udokumentuj orientację w dzienniku),
+  - nigdy nie wywołuj `Bitmap.GetPixel()` w pętli renderowania.
+- **Domyślne pliki w `data/`:**
+  - przygotuj dwa czytelne domyślne obrazy w katalogu `data/`: `data/texture.png` (np. wyraźny wzór cegieł / kafelków) oraz `data/normalmap.png` (pasująca mapa normalnych z kanałem Blue w `128..255` i wyraźnym reliefem),
+  - pliki w `data/` są automatycznie kopiowane przez `.csproj` do katalogu wynikowego; przy starcie wczytaj oba pliki z `AppContext.BaseDirectory/data/` (z czytelną obsługą błędu, gdyby pliku brakowało).
+
+#### 2. Materiał per powierzchnia (`SurfaceAppearance` lub pola przy powierzchni)
+
+- Każda powierzchnia w scenie musi mieć **niezależny** stan koloru obiektu $I_O$:
+  - tryb: `UseTexture` (`bool`: `false` = jednolity kolor, `true` = tekstura),
+  - `SolidColor` (`Vector3` w $[0, 1]$, początkowo z dotychczasowej palety `Gold`, `SteelBlue`, `IndianRed`, `MediumSeaGreen`),
+  - `Texture` (`TextureData?`, początkowo przypisana domyślna tekstura `data/texture.png`).
+- **Ustawienie startowe:** przypisz domyślną teksturę wszystkim powierzchniom; np. 1. powierzchnia startuje z jednolitym kolorem (`Gold`), a 2. powierzchnia z włączoną domyślną teksturą (lub wszystkie z domyślną teksturą — tak aby po uruchomieniu od razu było widać niezależność $I_O$ obu powierzchni).
+- **Mapa normalnych (NormalMap):**
+  - przechowuj w `Scene` (lub `DrawingPanel`) flagę `UseNormalMap` (`bool`, domyślnie `false` lub `true` — z domyślnie wczytaną `data/normalmap.png`, aby samo zaznaczenie checkboxa natychmiast aktywowało efekt) oraz aktualnie załadowaną `NormalMap` (`TextureData?`).
+
+#### 3. Macierz przekształcenia $M_{3\times3}$ i modyfikacja wektora normalnego
+
+- Dodaj w `Matrix3x3.cs` prostą metodę fabryczną budującą macierz z trzech wektorów kolumnowych (spójnie z konwencją kolumnową $P' = M \cdot P$ z Decyzji 4):
+
+```csharp
+public static Matrix3x3 FromColumns(Vector3 c0, Vector3 c1, Vector3 c2)
+```
+
+- Dla każdego widocznego piksela (dopiero po wygraniu testu Z-buffera!):
+  1. Jeśli potrzebne są $(u, v)$ (aktywna tekstura dla tej powierzchni lub włączona NormalMap), zinterpoluj parametry powierzchni:
+     $$u(P) = \text{Clamp}(\alpha u_A + \beta u_B + \gamma u_C,\ 0,\ 1), \qquad v(P) = \text{Clamp}(\alpha v_A + \beta v_B + \gamma v_C,\ 0,\ 1)$$
+  2. Wyznacz kolor obiektu $I_O(P)$:
+     - dla trybu tekstury: `texture.Sample(u, v)`,
+     - dla trybu jednolitego koloru: stałe `solidColor`.
+  3. Zinterpoluj i znormalizuj wektor normalny powierzchni $N_{\text{powierzchni}}$ (jak w Slice 4).
+  4. Jeśli włączona jest NormalMap (gdy wyłączona — pomiń poniższe obliczenia, aby nie tracić wydajności):
+     - zinterpoluj i znormalizuj obrócone wektory styczne w punkcie $P$ (pamiętaj: `RotPu` i `RotPv` są pochodnymi i nie mają długości 1, dlatego normalizacja przed budową macierzy $M$ jest obowiązkowa!):
+       $$\hat{P}_u = \text{normalize}(\alpha \cdot \text{RotPu}_A + \beta \cdot \text{RotPu}_B + \gamma \cdot \text{RotPu}_C)$$
+       $$\hat{P}_v = \text{normalize}(\alpha \cdot \text{RotPv}_A + \beta \cdot \text{RotPv}_B + \gamma \cdot \text{RotPv}_C)$$
+       (z zabezpieczeniem: jeśli $\|\hat{P}_u\|^2 < 10^{-12}$ lub $\|\hat{P}_v\|^2 < 10^{-12}$, pomiń perturbację i zostaw $N = N_{\text{powierzchni}}$),
+     - zbuduj macierz przestrzeni stycznej:
+       $$M_{3\times3} = [\hat{P}_u,\ \hat{P}_v,\ N_{\text{powierzchni}}]$$
+     - odczytaj z NormalMap wersor $N_{\text{tekstury}} = \text{normalMap.Sample}(u, v)$,
+     - wyznacz zmodyfikowany wektor normalny i znormalizuj go:
+       $$N = \text{normalize}(M \cdot N_{\text{tekstury}})$$
+       (z zabezpieczeniem na wektor zerowy $\rightarrow N_{\text{powierzchni}}$).
+  5. Przekaż `p3D`, `n`, `objectColor` do istniejącego `light.Shade(...)`.
+- Zachowaj `0` alokacji sterty w `FillTriangle` / `FillRow`.
 
 #### 4. Kontrolki UI (`MainForm.Designer.cs` + `MainForm.cs`)
-- W `controlPanel` (utrzymuj czystość `MainForm.Designer.cs` — wyłącznie układ kontrolek i podpięcie zdarzeń; w razie potrzeby włącz `controlPanel.AutoScroll = true`, aby kontrolki nie były ucinane na mniejszym oknie):
-  - suwak **$k_d$**: zakres `0.00`–`1.00` (`TrackBar` `0`–`100`, domyślnie `70` → `0.70`) + etykieta z bieżącą wartością,
-  - suwak **$k_s$**: zakres `0.00`–`1.00` (`TrackBar` `0`–`100`, domyślnie `50` → `0.50`) + etykieta z bieżącą wartością,
-  - suwak **$m$**: zakres `1`–`100` (`TrackBar` `1`–`100`, domyślnie `20`) + etykieta z bieżącą wartością,
-  - suwak **$z$ światła**: zakres `0.5`–`5.0` (`TrackBar` `5`–`50`, domyślnie `20` → `2.0`) + etykieta z bieżącą wartością,
-  - przycisk **„Kolor światła”** otwierający `ColorDialog` (z czytelnym podglądem wybranego koloru, np. mały panel/swatch lub kolor przycisku).
-- Każda zmiana parametru oświetlenia odświeża `drawingPanel` (`Invalidate()`).
 
-### Czego NIE robić w Slice 4
-- Nie implementuj jeszcze animacji źródła światła ani zamkniętej krzywej Béziera dla światła (zrobimy to w **Slice 6**).
-- Nie implementuj jeszcze tekstur (obrazów dla $I_O$), niezależnego wyboru kolor/tekstura per powierzchnia ani mapy wektorów normalnych (NormalMap) — te elementy wejdą w **Slice 5**.
-- Nie dodawaj składowej ambient ($k_a$) do równania oświetlenia.
-- Nie zmieniaj algorytmu wypełniania AET ani struktury bufora `int[]` + `LockBits`.
-- Nie twórz przedwczesnych interfejsów ani abstrakcji pod przyszłe tekstury/NormalMap.
+W `controlPanel` (utrzymuj czystość `MainForm.Designer.cs` — wyłącznie układ kontrolek i podpięcie zdarzeń; `AutoScroll = true` już działa):
 
-### Review / LLM-as-a-judge (OBOWIĄZKOWY w Slice 4)
-Po napisaniu kodu przeprowadź niezależną weryfikację (review / judge) pod kątem najczęstszych błędów w cieniowaniu:
-1. **Spójność układu współrzędnych dla $L$:** czy $P_{3D}$ i $P_{\text{światła}}$ są w tych samych jednostkach sceny (nie ekranowych pikselach!), a wektor $L$ wskazuje od punktu **do** światła ($P_{\text{światła}} - P_{3D}$)?
-2. **Interpolacja i normalizacja $N$:** czy $N(P)$ jest interpolowane z **obróconych** `RotN` i obowiązkowo normalizowane po interpolacji, z bezpieczną obsługą wektora zerowego?
-3. **Dwustronność i znaki cosinusów:** czy przy $N_z < 0$ następuje odwrócenie $N = -N$ (obie strony powierzchni są oświetlane po obrocie o 180°), czy przy $\langle N, L \rangle \le 0$ punkt daje czarny kolor, oraz czy $\langle V, R \rangle$ jest ograniczane do $\ge 0$ (brak ujemnych kolorów dla nieparzystych $m$ i brak fałszywych refleksów z tyłu dla parzystych $m$)?
-4. **Kolejność testu Z-buffera:** czy test `z > zBuffer[idx]` wykonuje się **przed** interpolacją $P_{3D}, N$ i liczeniem `MathF.Pow`?
-5. **Zakres kolorów i clamping:** czy wszystkie obliczenia oświetlenia odbywają się w $[0, 1]$, a wynik końcowy jest poprawnie zaciskany do `0..255` (bez przekręcenia bajtów gdy $k_d + k_s > 1$)?
-6. **Alokacje i Designer:** czy `FillTriangle` nadal ma 0 alokacji sterty oraz czy `MainForm.Designer.cs` pozostał czysty?
+- **Sekcja koloru obiektu $I_O$ (niezależnie dla każdej powierzchni):**
+  - `ComboBox` wyboru powierzchni (`surfaceComboBox`, `DropDownStyle = DropDownList`, wypełniany dynamicznie przy starcie: „Powierzchnia 1”, „Powierzchnia 2”, ...),
+  - dwa przyciski radiowe (`RadioButton`, np. w `GroupBox` „Kolor obiektu”):
+    - „Jednolity kolor” (`solidColorRadioButton`),
+    - „Tekstura” (`textureRadioButton`),
+  - przycisk „Kolor obiektu” (`objectColorButton`, otwiera `ColorDialog` i pokazuje podgląd koloru wybranej powierzchni),
+  - przycisk „Wczytaj teksturę...” (`loadTextureButton`, otwiera `OpenFileDialog` z filtrem obrazów `*.png;*.jpg;*.jpeg;*.bmp` — w razie błędu pliku pokaż `MessageBox` bez nadpisywania aktualnej tekstury).
+- **Sekcja mapy wektorów normalnych:**
+  - `CheckBox` „Mapa normalnych” (`useNormalMapCheckBox`),
+  - przycisk „Wczytaj NormalMap...” (`loadNormalMapButton`, `OpenFileDialog` z obsługą błędu pliku).
+- **Synchronizacja UI przy zmianie wybranej powierzchni:** podczas przełączania `surfaceComboBox` ustaw flagę blokującą (np. `isSyncingUi = true`), aby aktualizacja `Checked` w `RadioButton` nie nadpisała ustawień innej powierzchni.
 
-### Po zakończeniu Slice 4 (obowiązkowy wpis do `guidelines.md`)
-Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis `Slice 4`:
-- listę utworzonych/zmodyfikowanych plików w `src/`,
-- przyjęte założenia (struktura parametrów oświetlenia, domyślne $k_d, k_s, m, z_L$, detale konwersji `Color ↔ Vector3`, obsługa wektorów zdegenerowanych),
-- wyniki weryfikacji (w tym podsumowanie review/judge i pomiar czasu klatki):
-  - gładkie cieniowanie bez widocznych krawędzi pojedynczych trójkątów (potwierdzenie interpolacji normalnych per piksel),
-  - wyraźny połysk zwierciadlany reagujący na $m$ (małe $m = 1..5$ → szeroki połysk, duże $m = 60..100$ → ostry punktowy refleks),
-  - reakcja na $k_d = 0$ (tylko refleks zwierciadlany na czarnym tle), $k_s = 0$ (czysty matowy Lambert), $k_d = k_s = 0$ (czarne powierzchnie),
-  - zmiana koloru światła $I_L$ (np. czerwone światło na niebieskiej powierzchni daje ciemny wynik, białe daje pełny kolor obiektu) oraz zmiana wysokości $z$ światła,
-  - poprawne oświetlenie **obu stron** powierzchni po obróceniu sceny o 180° (brak całkowicie czarnej drugiej strony),
-  - poprawne zasłanianie Z-bufferem oraz płynność obrotu myszą przy $k = 16$,
+### Czego NIE robić w Slice 5
+
+- Nie implementuj jeszcze animacji źródła światła ani zamkniętej krzywej Béziera dla światła (to zostaje na Slice 6).
+- Nie używaj `Bitmap.GetPixel()` w pętli rasteryzacji.
+- Nie zmieniaj algorytmu AET ani logiki Z-buffera.
+- Nie dodawaj filtrowania dwuliniowego (bilinear) ani mipmap — prosty nearest-neighbor z clampingiem `[0, 1]` w zupełności wystarcza i zachowuje prostotę (*Simplicity First*).
+
+### Review / LLM-as-a-judge (OBOWIĄZKOWY w Slice 5)
+
+Po napisaniu kodu przeprowadź niezależną weryfikację (*review* / *judge*) pod kątem najczęstszych błędów w teksturowaniu i NormalMap:
+
+1. **Normalizacja kolumn macierzy $M$:** czy `RotPu` i `RotPv` są interpolowane z obróconych wektorów i normalizowane przed wstawieniem jako kolumny `Matrix3x3.FromColumns(pu, pv, nSurf)`, oraz czy wynik $N = M \cdot N_{\text{tekstury}}$ jest normalizowany?
+2. **Dekodowanie NormalMap:** czy `RGB(127, 127, 255)` daje $N_{\text{tekstury}} \approx (0, 0, 1)$ i czy dla płaskiej mapy normalnych (całej `(127, 127, 255)`) wynik cieniowania jest identyczny jak przy wyłączonej NormalMap?
+3. **Bezpieczeństwo $(u, v)$ i wydajność:** czy $(u, v)$ są zaciskane do $[0, 1]$ przed indeksowaniem tablicy (brak `IndexOutOfRangeException` na krawędziach trójkątów), czy piksele obrazu są wyciągane raz przez `LockBits` (zero `GetPixel`), oraz czy przy wyłączonej NormalMap pomijana jest interpolacja `Pu`, `Pv`?
+4. **Niezależność powierzchni i synchronizacja UI:** czy zmiana trybu (kolor/tekstura), koloru lub wczytanie innej tekstury dla Powierzchni 1 nie wpływa na Powierzchnię 2, oraz czy przełączanie `surfaceComboBox` poprawnie odzwierciedla stan każdej powierzchni bez nadpisywania go?
+5. **Zasoby, błędy plików i Designer:** czy tymczasowe `Bitmap` przy ładowaniu tekstur są zwalniane (`using`), czy uszkodzony plik obrazu nie crashuje aplikacji, czy `FillTriangle` zachowuje `0 B` alokacji oraz czy `MainForm.Designer.cs` pozostał czysty?
+
+### Po zakończeniu Slice 5 (obowiązkowy wpis do `guidelines.md`)
+
+Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis Slice 5:
+
+- listę utworzonych/zmodyfikowanych plików w `src/` oraz dodanych domyślnych plików obrazów w `data/`,
+- przyjęte założenia (format i rozdzielczość domyślnych plików w `data/`, mapowanie `v` vs `1 - v`, zachowanie startowe powierzchni, sposób zarządzania `SurfaceAppearance`),
+- wyniki weryfikacji (w tym podsumowanie review/judge i pomiar czasu klatki z włączoną teksturą oraz NormalMap):
+  - niezależne przełączanie jednolity kolor $\leftrightarrow$ tekstura oraz wczytywanie osobnych tekstur/kolorów dla Powierzchni 1 i Powierzchni 2,
+  - poprawny efekt 3D reliefu po włączeniu NormalMap (wyraźna reakcja wypukłości/rowków na obrót sceny myszą i na suwaki $k_d, k_s, m, z_L$),
+  - brak różnicy (poza zaokrągleniem `127/255`) między płaską NormalMap `(127, 127, 255)` a wyłączoną NormalMap,
+  - płynność obrotu myszą przy $k = 16$ z włączoną teksturą i NormalMap,
   - poprawność ładowania `MainForm` w Designerze Visual Studio 2022,
-- potwierdzenie gotowości do przejścia do **Slice 5** (kolor/tekstura per powierzchnia + NormalMap).
+- potwierdzenie gotowości do przejścia do Slice 6 (animowane i edytowalne źródło światła na zamkniętej krzywej Béziera).
 
 ## 6. Dziennik slice'ów i decyzji
 - **Decyzja 1:** Start na **.NET 9** (`net9.0-windows`, Visual Studio 2022) + **WinForms** z planem łatwej migracji `TargetFramework` na **.NET 10** w przyszłości; praca małymi vertical slices z aktualizacją `guidelines.md` po każdym etapie.
@@ -278,3 +297,35 @@ Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis `Slice 4`:
   - do sprawdzenia ręcznie: ładowanie `MainForm` w Designerze VS 2022, płynność obrotu myszą, `AutoScroll` panelu przy małym oknie,
   - edge case: przy `z_L` bliskim powierzchni (0.5) i silnie nachylonych fragmentach duże obszary w cieniu (zgodne z modelem bez ambient); wokół konturu powierzchni widzianej z boku `N` interpolowane może mieć `N.z ≈ 0` — odwracanie per piksel może dać skok cieniowania na linii konturu (zamierzone przy dwustronności).
 4. **Punkt wyjścia do Slice 5:** per-pikselowe `P_3D`, `N` i parametry `u, v` dostępne w wierzchołkach; `LightSettings.Shade` przyjmuje `I_O` per piksel — gotowe do wpięcia tekstury (`I_O` z obrazu wg `u, v`) i NormalMap. Gotowe do przejścia do **Slice 5**.
+
+### Slice 5 — wykonany (2026-11-23)
+1. **Status / pliki** (`src/BezierSceneApp/`):
+  - `Model/TextureData.cs` (nowy) — `LoadColor(path)` / `LoadNormalMap(path)`: jednorazowy odczyt `Bitmap` (`using`) + `LockBits(Format32bppArgb)` + `Marshal.Copy` do płaskiej `Vector3[]`; `Sample(u, v)` nearest-neighbor z clampingiem; brak pliku → `FileNotFoundException` (GDI+ zgłaszałby nieczytelne „Parameter is not valid”),
+  - `Model/SurfaceAppearance.cs` (nowy) — pola `UseTexture`, `SolidColor` (`Vector3`), `Texture` (`TextureData?`),
+  - `Model/Scene.cs` — `Appearances` (`Appearances[i]` ↔ `Surfaces[i]` ↔ `Meshes[i]`, kolory startowe z palety `Gold`, `SteelBlue`, `IndianRed`, `MediumSeaGreen` przeniesionej z `DrawingPanel`), `UseNormalMap`, `NormalMap`,
+  - `Model/Matrix3x3.cs` — `FromColumns(c0, c1, c2)`,
+  - `TriangleRasterizer.cs` — `FillTriangle(..., color, tex, normals, light)`: dodatkowe pola trójkąta (`RotPu`, `RotPv`, `U`, `V`, tekstura, NormalMap); w `FillRow` po teście Z-buffera: `u, v` (tylko gdy jest tekstura lub NormalMap) → `I_O` → `PerturbNormal` (tylko przy włączonej NormalMap) → `Shade`,
+  - `DrawingPanel.cs` — `DrawFilled` przekazuje `SolidColor`, teksturę (`null` w trybie koloru) i NormalMap (`null` gdy wyłączona),
+  - `MainForm.Designer.cs` — `surfaceComboBox`, `objectColorGroupBox` („Kolor obiektu”: `solidColorRadioButton`, `textureRadioButton`, `objectColorButton`, `loadTextureButton`), `useNormalMapCheckBox`, `loadNormalMapButton`, `objectColorDialog`, `imageOpenFileDialog` (filtr `*.png;*.jpg;*.jpeg;*.bmp`); tylko układ i podpięcie zdarzeń,
+  - `MainForm.cs` — wczytanie domyślnych obrazów, `LoadImage` (błąd → `MessageBox`, zwraca `null`, dotychczasowy obraz zostaje), synchronizacja UI z flagą `isSyncingUi`, handlery kontrolek,
+  - `data/texture.png` (nowy, 512×512 PNG, cegły 128×64 px z fugą 6 px, wygenerowany jednorazowo skryptem poza repo), `data/normalmap.png` (kopia `data/normalMapCircle.png`, 512×512 — pojedyncza półkula, najłatwiej ocenić kierunek reliefu); przykładowe mapy `normal_4.png`, `floorNormal.png`, `15574-normal.jpg`, `normalMapCircle.png` zostają do testów,
+  - `data/surfaces.txt` — **transpozycja kolejności punktów kontrolnych** w obu powierzchniach (ta sama geometria): teraz `u` rośnie wzdłuż `+x`, `v` wzdłuż `+y`, a `N = Pu × Pv` wskazuje do obserwatora (`+z`) w widoku startowym (wcześniej `−z`, patrz edge case w Slice 2).
+2. **Przyjęte założenia:**
+  - orientacja tekstury: `tx = u · (W − 1)`, `ty = (1 − v) · (H − 1)` — `v = 1` to górny wiersz obrazu; zgodne z konwencją map normalnych OpenGL (zielony = „w górę” = `+Pv`), więc kolumny macierzy `[Pu, Pv, N]` odpowiadają osiom obrazu `x`, `y` i kanałowi `B`,
+  - start: wszystkie powierzchnie mają przypisaną `data/texture.png`; Powierzchnia 1 — jednolity `Gold`, Powierzchnia 2 — tekstura; NormalMap wczytana z `data/normalmap.png`, ale wyłączona (zaznaczenie checkboxa od razu ją aktywuje),
+  - brak domyślnego pliku przy starcie → `MessageBox` i dalsza praca z `null` (powierzchnia w trybie tekstury bez tekstury rysowana jest kolorem jednolitym; brak NormalMap = brak perturbacji),
+  - udane „Wczytaj teksturę...” przełącza wybraną powierzchnię na tryb tekstury, udane „Wczytaj NormalMap...” zaznacza „Mapa normalnych” (inaczej wczytanie nie dawałoby widocznego efektu); wybór koloru nie zmienia trybu,
+  - NormalMap jest wspólna dla sceny, tekstura i kolor — per powierzchnia (`SurfaceAppearance` trzymane w `Scene`, UI edytuje wygląd wskazany przez `surfaceComboBox`),
+  - perturbacja działa na `N_powierzchni` przed dwustronnością; `Shade` odwraca wynikowe `N` przy `N.z < 0`, więc z tyłu płata relief jest fizycznie spójny (wypukłość z przodu = wklęsłość z tyłu).
+3. **Weryfikacja i przypadki brzegowe:**
+  - build Debug: 0 ostrzeżeń, 0 błędów; smoke test — aplikacja startuje bez komunikatów, nowe kontrolki mieszczą się w panelu (zrzut ekranu),
+  - harness offscreen (scratch, poza repo; `800×750`, `k = 16`, Release, render do PNG):
+    - `RGB(127, 127, 255)` → `(−0.0039, −0.0039, 0.99998)`; płaska NormalMap vs wyłączona: max różnica **3/255** na kanał (zaokrąglenie `127/255` wzmocnione przez `m = 20`),
+    - obraz `normalMapCircle.png` użyty jako tekstura koloru: zielony u góry, czerwony po prawej — tekstura nie jest odbita ani obrócona; cegły poziome,
+    - NormalMap „półkula” w widoku startowym: ciemny brzeg po stronie odwróconej od światła → wypukłość (przed transpozycją `surfaces.txt` była widoczna jako wklęsłość i tekstura była transponowana); `normal_4.png` daje wyraźny relief kamieni na obu powierzchniach,
+    - `Sample` poza `[0, 1]` i z `NaN` — bez wyjątków; uszkodzony plik → `ArgumentException`, brak pliku → `FileNotFoundException` (oba łapane w `LoadImage`); plik źródłowy da się usunąć zaraz po wczytaniu (bitmapa zwolniona),
+    - czas klatki (rasteryzacja + `CopyToBitmap` + odczyt testowy): kolor ~5,5 ms, tekstura ~6 ms, tekstura + NormalMap ~10 ms; alokacje w 1000× `FillTriangle` z teksturą i NormalMap = **0 B**,
+  - review / judge: (1) `RotPu`, `RotPv` interpolowane i normalizowane przed `FromColumns`, wynik `M · N_tekstury` normalizowany, zabezpieczenia `1e-12` ✔; (2) dekodowanie `2c/255 − 1` + normalizacja, płaska mapa ≈ wyłączona ✔; (3) clamp `u, v` w rasteryzerze i w `Sample`, `LockBits` zamiast `GetPixel`, `Pu/Pv` liczone tylko przy włączonej NormalMap ✔; (4) osobny `SurfaceAppearance` na powierzchnię, `isSyncingUi` blokuje zapis przy przełączaniu combo ✔; (5) `using` na `Bitmap`, błędy plików → `MessageBox`, 0 B alokacji, Designer bez logiki ✔,
+  - do sprawdzenia ręcznie: ładowanie `MainForm` w Designerze VS 2022, płynność obrotu myszą przy `k = 16` z teksturą i NormalMap, niezależne przełączanie trybu/koloru/tekstury dla Powierzchni 1 i 2 w UI,
+  - edge case: dla innych plików powierzchni orientacja `u, v` zależy od kolejności punktów — przy `Pu × Pv` od obserwatora tekstura będzie odbita, a relief odwrócony (do obrotu o 180°); przy konturze (`N.z ≈ 0`) perturbowana normalna może zmienić znak `z` inaczej niż `N_powierzchni` — możliwe pojedyncze piksele z odwróconym reliefem na linii konturu.
+4. **Punkt wyjścia do Slice 6:** `I_O` per piksel z koloru lub tekstury per powierzchnia, opcjonalna NormalMap w przestrzeni stycznej, pozycja światła w `LightSettings.Position` (na razie `(0, 0, z_L)` z suwaka). Gotowe do przejścia do **Slice 6** (animowane i edytowalne źródło światła na zamkniętej krzywej Béziera).
