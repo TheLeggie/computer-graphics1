@@ -7,6 +7,8 @@ namespace BezierSceneApp
     {
         private const string DefaultTextureFile = "texture.png";
         private const string DefaultNormalMapFile = "normalmap.png";
+        // krok parametru t na tykniecie timera (33 ms -> pelny obieg w ~6.6 s)
+        private const float LightAnimationStep = 0.005f;
 
         private Scene? scene;
         // blokuje zapis do wygladu powierzchni podczas odswiezania kontrolek
@@ -33,6 +35,10 @@ namespace BezierSceneApp
             for (int i = 0; i < surfaces.Count; i++)
                 surfaceComboBox.Items.Add($"Powierzchnia {i + 1}");
             surfaceComboBox.SelectedIndex = 0;
+
+            drawingPanel.Light.Position.Z = lightZTrackBar.Value / 10f;
+            drawingPanel.UpdateLightPosition();
+            lightAnimationTimer.Start();
         }
 
         private SurfaceAppearance? SelectedAppearance =>
@@ -161,19 +167,38 @@ namespace BezierSceneApp
             drawingPanel.Invalidate();
         }
 
-        // wspolny handler suwakow kd, ks, m, z swiatla
+        // wspolny handler suwakow kd, ks, m, z swiatla (zachowuje (x(t), y(t)) na krzywej)
         private void lightingTrackBar_ValueChanged(object? sender, EventArgs e)
         {
             LightSettings light = drawingPanel.Light;
             light.Kd = kdTrackBar.Value / 100f;
             light.Ks = ksTrackBar.Value / 100f;
             light.M = mTrackBar.Value;
-            light.Position = new Vector3(0f, 0f, lightZTrackBar.Value / 10f);
+            light.Position.Z = lightZTrackBar.Value / 10f;
+            drawingPanel.UpdateLightPosition();
 
             kdLabel.Text = string.Format(CultureInfo.InvariantCulture, "kd: {0:0.00}", light.Kd);
             ksLabel.Text = string.Format(CultureInfo.InvariantCulture, "ks: {0:0.00}", light.Ks);
             mLabel.Text = $"m: {mTrackBar.Value}";
             lightZLabel.Text = string.Format(CultureInfo.InvariantCulture, "z światła: {0:0.0}", light.Position.Z);
+            drawingPanel.Invalidate();
+        }
+
+        private void lightAnimationTimer_Tick(object? sender, EventArgs e)
+        {
+            drawingPanel.LightT = (drawingPanel.LightT + LightAnimationStep) % 1f;
+            drawingPanel.UpdateLightPosition();
+            drawingPanel.Invalidate();
+        }
+
+        private void animateLightCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            lightAnimationTimer.Enabled = animateLightCheckBox.Checked;
+        }
+
+        private void showLightCurveCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            drawingPanel.ShowLightCurve = showLightCurveCheckBox.Checked;
             drawingPanel.Invalidate();
         }
 

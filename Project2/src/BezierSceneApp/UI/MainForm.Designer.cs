@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             drawingPanel = new DrawingPanel();
             controlPanel = new Panel();
             showFilledCheckBox = new CheckBox();
@@ -44,6 +45,8 @@
             lightZLabel = new Label();
             lightZTrackBar = new TrackBar();
             lightColorButton = new Button();
+            animateLightCheckBox = new CheckBox();
+            showLightCurveCheckBox = new CheckBox();
             lightColorDialog = new ColorDialog();
             surfaceComboBox = new ComboBox();
             objectColorGroupBox = new GroupBox();
@@ -55,6 +58,7 @@
             loadNormalMapButton = new Button();
             objectColorDialog = new ColorDialog();
             imageOpenFileDialog = new OpenFileDialog();
+            lightAnimationTimer = new System.Windows.Forms.Timer(components);
             controlPanel.SuspendLayout();
             objectColorGroupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).BeginInit();
@@ -70,7 +74,7 @@
             drawingPanel.Dock = DockStyle.Fill;
             drawingPanel.Location = new Point(0, 0);
             drawingPanel.Name = "drawingPanel";
-            drawingPanel.Size = new Size(800, 750);
+            drawingPanel.Size = new Size(800, 785);
             drawingPanel.TabIndex = 0;
             // 
             // controlPanel
@@ -80,6 +84,8 @@
             controlPanel.Controls.Add(useNormalMapCheckBox);
             controlPanel.Controls.Add(objectColorGroupBox);
             controlPanel.Controls.Add(surfaceComboBox);
+            controlPanel.Controls.Add(showLightCurveCheckBox);
+            controlPanel.Controls.Add(animateLightCheckBox);
             controlPanel.Controls.Add(lightColorButton);
             controlPanel.Controls.Add(lightZTrackBar);
             controlPanel.Controls.Add(lightZLabel);
@@ -98,7 +104,7 @@
             controlPanel.Location = new Point(800, 0);
             controlPanel.Name = "controlPanel";
             controlPanel.Padding = new Padding(8);
-            controlPanel.Size = new Size(200, 750);
+            controlPanel.Size = new Size(200, 785);
             controlPanel.TabIndex = 1;
             // 
             // showFilledCheckBox
@@ -254,6 +260,32 @@
             lightColorButton.UseVisualStyleBackColor = false;
             lightColorButton.Click += lightColorButton_Click;
             // 
+            // animateLightCheckBox
+            // 
+            animateLightCheckBox.AutoSize = true;
+            animateLightCheckBox.Checked = true;
+            animateLightCheckBox.CheckState = CheckState.Checked;
+            animateLightCheckBox.Location = new Point(11, 490);
+            animateLightCheckBox.Name = "animateLightCheckBox";
+            animateLightCheckBox.Size = new Size(115, 19);
+            animateLightCheckBox.TabIndex = 14;
+            animateLightCheckBox.Text = "Animacja światła";
+            animateLightCheckBox.UseVisualStyleBackColor = true;
+            animateLightCheckBox.CheckedChanged += animateLightCheckBox_CheckedChanged;
+            // 
+            // showLightCurveCheckBox
+            // 
+            showLightCurveCheckBox.AutoSize = true;
+            showLightCurveCheckBox.Checked = true;
+            showLightCurveCheckBox.CheckState = CheckState.Checked;
+            showLightCurveCheckBox.Location = new Point(11, 515);
+            showLightCurveCheckBox.Name = "showLightCurveCheckBox";
+            showLightCurveCheckBox.Size = new Size(138, 19);
+            showLightCurveCheckBox.TabIndex = 15;
+            showLightCurveCheckBox.Text = "Pokaż krzywą światła";
+            showLightCurveCheckBox.UseVisualStyleBackColor = true;
+            showLightCurveCheckBox.CheckedChanged += showLightCurveCheckBox_CheckedChanged;
+            // 
             // lightColorDialog
             // 
             lightColorDialog.Color = Color.White;
@@ -262,10 +294,10 @@
             // surfaceComboBox
             // 
             surfaceComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            surfaceComboBox.Location = new Point(11, 495);
+            surfaceComboBox.Location = new Point(11, 548);
             surfaceComboBox.Name = "surfaceComboBox";
             surfaceComboBox.Size = new Size(178, 23);
-            surfaceComboBox.TabIndex = 14;
+            surfaceComboBox.TabIndex = 16;
             surfaceComboBox.SelectedIndexChanged += surfaceComboBox_SelectedIndexChanged;
             // 
             // objectColorGroupBox
@@ -274,10 +306,10 @@
             objectColorGroupBox.Controls.Add(objectColorButton);
             objectColorGroupBox.Controls.Add(textureRadioButton);
             objectColorGroupBox.Controls.Add(solidColorRadioButton);
-            objectColorGroupBox.Location = new Point(11, 525);
+            objectColorGroupBox.Location = new Point(11, 578);
             objectColorGroupBox.Name = "objectColorGroupBox";
             objectColorGroupBox.Size = new Size(178, 135);
-            objectColorGroupBox.TabIndex = 15;
+            objectColorGroupBox.TabIndex = 17;
             objectColorGroupBox.TabStop = false;
             objectColorGroupBox.Text = "Kolor obiektu";
             // 
@@ -327,20 +359,20 @@
             // useNormalMapCheckBox
             // 
             useNormalMapCheckBox.AutoSize = true;
-            useNormalMapCheckBox.Location = new Point(11, 670);
+            useNormalMapCheckBox.Location = new Point(11, 720);
             useNormalMapCheckBox.Name = "useNormalMapCheckBox";
             useNormalMapCheckBox.Size = new Size(118, 19);
-            useNormalMapCheckBox.TabIndex = 16;
+            useNormalMapCheckBox.TabIndex = 18;
             useNormalMapCheckBox.Text = "Mapa normalnych";
             useNormalMapCheckBox.UseVisualStyleBackColor = true;
             useNormalMapCheckBox.CheckedChanged += useNormalMapCheckBox_CheckedChanged;
             // 
             // loadNormalMapButton
             // 
-            loadNormalMapButton.Location = new Point(11, 695);
+            loadNormalMapButton.Location = new Point(11, 745);
             loadNormalMapButton.Name = "loadNormalMapButton";
             loadNormalMapButton.Size = new Size(178, 27);
-            loadNormalMapButton.TabIndex = 17;
+            loadNormalMapButton.TabIndex = 19;
             loadNormalMapButton.Text = "Wczytaj NormalMap...";
             loadNormalMapButton.UseVisualStyleBackColor = true;
             loadNormalMapButton.Click += loadNormalMapButton_Click;
@@ -353,11 +385,16 @@
             // 
             imageOpenFileDialog.Filter = "Obrazy (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp";
             // 
+            // lightAnimationTimer
+            // 
+            lightAnimationTimer.Interval = 33;
+            lightAnimationTimer.Tick += lightAnimationTimer_Tick;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1000, 750);
+            ClientSize = new Size(1000, 785);
             Controls.Add(drawingPanel);
             Controls.Add(controlPanel);
             Name = "MainForm";
@@ -392,6 +429,8 @@
         private Label lightZLabel;
         private TrackBar lightZTrackBar;
         private Button lightColorButton;
+        private CheckBox animateLightCheckBox;
+        private CheckBox showLightCurveCheckBox;
         private ColorDialog lightColorDialog;
         private ComboBox surfaceComboBox;
         private GroupBox objectColorGroupBox;
@@ -403,5 +442,6 @@
         private Button loadNormalMapButton;
         private ColorDialog objectColorDialog;
         private OpenFileDialog imageOpenFileDialog;
+        private System.Windows.Forms.Timer lightAnimationTimer;
     }
 }
