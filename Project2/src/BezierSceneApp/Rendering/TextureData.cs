@@ -4,7 +4,9 @@ using System.Runtime.InteropServices;
 
 namespace BezierSceneApp;
 
-// obraz zdekodowany raz do plaskiej tablicy Vector3 (bez GetPixel w petli renderowania)
+/// <summary>
+/// Wczytanie tekstury lub mapy normalnej do pamięci i odczytywanie wartości dla współrzędnych (u,v)
+/// </summary>
 public class TextureData
 {
     private readonly Vector3[] pixels;
@@ -27,7 +29,6 @@ public class TextureData
 
     private static TextureData Load(string path, bool normalMap)
     {
-        // GDI+ zglasza brak pliku jako nieczytelne "Parameter is not valid"
         if (!File.Exists(path))
             throw new FileNotFoundException("Nie znaleziono pliku.", path);
 
@@ -38,7 +39,8 @@ public class TextureData
             w = bmp.Width;
             h = bmp.Height;
             raw = new int[w * h];
-            // dla 32bpp stride = width * 4, wiec jedna kopia calej tablicy
+            // 32 bitowe ARGB, 4 bajty na piksel, bez paddingu na końcu wiersza
+            // wczytanie całosci do talbicy int[] raw
             BitmapData data = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             try
             {
@@ -49,7 +51,7 @@ public class TextureData
                 bmp.UnlockBits(data);
             }
         }
-
+        // odczytanie kanałów rgb
         var pixels = new Vector3[raw.Length];
         for (int i = 0; i < raw.Length; i++)
         {
@@ -68,7 +70,8 @@ public class TextureData
         return new TextureData(w, h, pixels);
     }
 
-    // nearest-neighbor; u -> kolumna (od lewej), v -> wiersz liczony od dolu obrazu (ty = (1 - v) * (H - 1))
+    // odczytanie wartosc dla wspolrzednych (u, v)
+    // u - kolumna (od lewej), v - wiersz (od dolu obrazu) (ty = (1 - v) * (H - 1))
     public Vector3 Sample(float u, float v)
     {
         u = Math.Clamp(u, 0f, 1f);

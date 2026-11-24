@@ -2,7 +2,9 @@ using System.Numerics;
 
 namespace BezierSceneApp;
     
-// siatka: wspoldzielone wierzcholki (obracane raz) i trojkaty
+/// <summary>
+/// Klasa siatki punktów kontrolnych
+/// </summary>
 public class Mesh
 {
     public List<Vertex> Vertices { get; } = new();

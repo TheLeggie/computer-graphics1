@@ -1,10 +1,11 @@
 namespace BezierSceneApp
 {
-    // stan sceny: powierzchnie, ich siatki, wyglad i narastajaca orientacja R
+    /// <summary>
+    /// Klasa sceny, przechowuje powierzchnie, siatki, orientacje w postaci macierzy, wygląd powierzchni
+    /// </summary>
     public class Scene
     {
-        // poczatkowe jednolite kolory I_O, cyklicznie dla kolejnych powierzchni
-        private static readonly Color[] DefaultColors = { Color.Gold, Color.SteelBlue, Color.IndianRed, Color.MediumSeaGreen };
+        private static readonly Color[] DefaultColors = { Color.Gold, Color.IndianRed, Color.MediumSeaGreen };
 
         public List<BezierSurface> Surfaces { get; }
         public List<Mesh> Meshes { get; } = new();
@@ -23,7 +24,7 @@ namespace BezierSceneApp
             SetDivisions(divisions);
         }
 
-        // nowa siatka z zachowaniem aktualnego obrotu
+        // nowa siatka podziału na 2*k^2 trójkątów z zachowaniem aktualnego obrotu
         public void SetDivisions(int k)
         {
             Meshes.Clear();
@@ -39,7 +40,7 @@ namespace BezierSceneApp
             ApplyOrientation();
         }
 
-        // obracane sa zawsze oryginalne wartosci (bez kumulacji bledow w punktach)
+        // obracane sa zawsze oryginalne wartosci (bez kumulacji błędów zaokrągleń w punktach)
         private void ApplyOrientation()
         {
             foreach (BezierSurface s in Surfaces)

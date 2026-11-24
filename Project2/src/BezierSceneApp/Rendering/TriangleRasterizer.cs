@@ -173,7 +173,11 @@ namespace BezierSceneApp
                 }
             }
         }
-
+        
+        /// <summary>
+        /// Wypełnia jedną scanlinię na wysokości "y" pomiędzy lewą (xLeft)
+        /// i prawą (xRight) krawędzią trójkąta
+        /// </summary>
         private void FillRow(int y, float xLeft, float xRight, Vector3 a, Vector3 b, Vector3 c,
             float invD, float bcY, float cbX, float caY, float acX)
         {
@@ -181,7 +185,7 @@ namespace BezierSceneApp
             int xTo = Math.Min(Width - 1, (int)MathF.Floor(xRight));
             float dy = y - c.Y;
             int row = y * Width;
-
+            // obliczanie wag dla kazdego piksela x
             for (int x = xFrom; x <= xTo; x++)
             {
                 float dx = x - c.X;
@@ -204,7 +208,6 @@ namespace BezierSceneApp
                 Vector3 color = objectColor;
                 if (texture != null || normalMap != null)
                 {
-                    // wagi barycentryczne na krawedzi moga minimalnie wyjsc poza [0, 1]
                     float u = Math.Clamp(alpha * uA + beta * uB + gamma * uC, 0f, 1f);
                     float v = Math.Clamp(alpha * vA + beta * vB + gamma * vC, 0f, 1f);
                     if (texture != null)

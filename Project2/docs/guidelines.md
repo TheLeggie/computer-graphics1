@@ -73,114 +73,94 @@ Po zakończeniu i uruchomieniu danego slice'a zaktualizuj ten plik (`guidelines.
   - układ 3D jest prawoskrętny: `+X` w prawo, `+Y` w górę, `+Z` w stronę obserwatora (wektor do obserwatora $V = [0, 0, 1]$),
   - obszar rysowania to panel WinForms z `DoubleBuffered = true`, początkiem układu współrzędnych `(0, 0)` na jego środku i osią `Y` skierowaną w górę.
 
-## 5. Aktualny etap: SLICE 5 — Kolor/tekstura per powierzchnia ($I_O$) i mapa wektorów normalnych (NormalMap)
+## 5. Aktualny etap: SLICE 6 — Animowane i edytowalne źródło światła na zamkniętej krzywej Béziera
 
-### Cel Slice 5
+### Cel Slice 6
 
-Umożliwić niezależny wybór źródła koloru obiektu $I_O$ dla każdej powierzchni (jednolity kolor lub tekstura z obrazu mapowana przez parametry $(u, v) \in [0, 1]^2$) oraz dodać opcjonalną modyfikację wektora normalnego na podstawie wczytanej mapy wektorów normalnych (**NormalMap**) w przestrzeni stycznej $[P_u, P_v, N_{\text{powierzchni}}]$.
+Zastąpić statyczne źródło światła $(0, 0, z_L)$ źródłem poruszającym się animacyjnie po zadanej **zamkniętej krzywej Béziera** (7 punktów kontrolnych $V_0 \dots V_6$, $V_6 = V_0$) leżącej w płaszczyźnie $z = \text{const}$, z możliwością zatrzymywania/wznawiania animacji, regulacji wysokości $z$ istniejącym suwakiem, interaktywnej edycji punktów kontrolnych krzywej myszą oraz widocznym znacznikiem aktualnego położenia źródła światła na krzywej.
 
-### Zakres prac w Slice 5
+### Zakres prac w Slice 6
 
-#### 1. Szybki odczyt obrazów (`TextureData` / `PixelMap` — bez `Bitmap.GetPixel`)
+#### 1. Model zamkniętej krzywej Béziera (`Model/LightBezierCurve.cs`)
 
-- Utwórz prostą klasę (np. `Model/TextureData.cs`) wczytującą obraz z pliku (`png`, `jpg`, `bmp`) jednorazowo przez `Bitmap` + `LockBits` + `Marshal.Copy` do płaskiej tablicy `Vector3[]` o rozmiarze `Width * Height` (zwalniając tymczasowy obiekt `Bitmap` przez `using` zaraz po skopiowaniu pikseli — zero wycieków GDI+):
-  - **Dla tekstury koloru ($I_O$):** zdekoduj każdy piksel z `0..255` na `Vector3(R / 255f, G / 255f, B / 255f)` w zakresie $[0, 1]$.
-  - **Dla mapy normalnych (NormalMap):** zdekoduj każdy piksel z `0..255` na wersor $N_{\text{tekstury}} \in [-1, +1]^3$:
-    $$N_x = \frac{2R}{255} - 1, \qquad N_y = \frac{2G}{255} - 1, \qquad N_z = \frac{2B}{255} - 1$$
-    i znormalizuj wektor przy ładowaniu (dla `RGB(127, 127, 255)` daje to $\approx (0, 0, 1)$, dla niebieskiego kanału `128..255` składowa $N_z > 0$; w razie zdegenerowanego wektora zerowego podstaw `(0, 0, 1)`).
-- **Próbkowanie `Sample(float u, float v)`:**
-  - zaciśnij $(u, v)$ do $[0, 1]$ (`Math.Clamp`), ponieważ wagi barycentryczne na krawędzi trójkąta mogą minimalnie wykraczać poza $[0, 1]$,
-  - przeskaluj na indeksy pikseli obrazu: `tx = Math.Clamp((int)(u * (Width - 1) + 0.5f), 0, Width - 1)` oraz `ty = Math.Clamp((int)((1f - v) * (Height - 1) + 0.5f), 0, Height - 1)` (lub konsekwentnie `v` — udokumentuj orientację w dzienniku),
-  - nigdy nie wywołuj `Bitmap.GetPixel()` w pętli renderowania.
-- **Domyślne pliki w `data/`:**
-  - przygotuj dwa czytelne domyślne obrazy w katalogu `data/`: `data/texture.png` (np. wyraźny wzór cegieł / kafelków) oraz `data/normalmap.png` (pasująca mapa normalnych z kanałem Blue w `128..255` i wyraźnym reliefem),
-  - pliki w `data/` są automatycznie kopiowane przez `.csproj` do katalogu wynikowego; przy starcie wczytaj oba pliki z `AppContext.BaseDirectory/data/` (z czytelną obsługą błędu, gdyby pliku brakowało).
+- Utwórz prostą klasę `LightBezierCurve` reprezentującą pojedynczą zamkniętą krzywą Béziera stopnia $n = 6$ (7 punktów kontrolnych $V_0 \dots V_6$ w płaszczyźnie $xy$, z niezmiennikiem $V_6 = V_0$):
+  - przechowuje 7 punktów `Vector2` (jednostki sceny), przy czym 6 punktów $V_0 \dots V_5$ jest niezależnych, a $V_6$ jest zawsze równe $V_0$,
+  - metoda `SetPoint(int index, Vector2 value)` aktualizuje punkt `index`; dla `index == 0` (lub `6`) ustawia jednocześnie oba końce (`points[0] = points[6] = value`), dzięki czemu krzywa zawsze pozostaje zamknięta,
+  - **domyślna krzywa:** 7 punktów rozłożonych w zamkniętą pętlę wokół środka sceny (np. promień $\approx 0.75\text{–}0.85$ w jednostkach sceny, z $V_6 = V_0$), tak aby światło wyraźnie omiatało obie powierzchnie z `data/surfaces.txt` i cała krzywa mieściła się w panelu.
+- **Obliczanie punktu na krzywej — algorytm de Casteljau:**
+  - `Evaluate(float t)` dla $t \in [0, 1]$ zwraca `Vector2` na płaszczyźnie $xy$ (z reużywaną tablicą roboczą `Vector2[7]` lub `stackalloc`, tj. **0 alokacji sterty** na wywołanie),
+  - dla $t = 0$ daje dokładnie $V_0$, dla $t = 1$ daje dokładnie $V_6 = V_0$,
+  - `Evaluate3D(float t, float z)` zwraca `new Vector3(p.X, p.Y, z)`.
+- Krzywa leży na płaszczyźnie $z = \text{const}$ w układzie obserwatora (nie obraca się razem z `Scene.Orientation`), spójnie z `LightSettings.Position` z Slice 4.
 
-#### 2. Materiał per powierzchnia (`SurfaceAppearance` lub pola przy powierzchni)
+#### 2. Animacja źródła światła i integracja z suwakiem `z`
 
-- Każda powierzchnia w scenie musi mieć **niezależny** stan koloru obiektu $I_O$:
-  - tryb: `UseTexture` (`bool`: `false` = jednolity kolor, `true` = tekstura),
-  - `SolidColor` (`Vector3` w $[0, 1]$, początkowo z dotychczasowej palety `Gold`, `SteelBlue`, `IndianRed`, `MediumSeaGreen`),
-  - `Texture` (`TextureData?`, początkowo przypisana domyślna tekstura `data/texture.png`).
-- **Ustawienie startowe:** przypisz domyślną teksturę wszystkim powierzchniom; np. 1. powierzchnia startuje z jednolitym kolorem (`Gold`), a 2. powierzchnia z włączoną domyślną teksturą (lub wszystkie z domyślną teksturą — tak aby po uruchomieniu od razu było widać niezależność $I_O$ obu powierzchni).
-- **Mapa normalnych (NormalMap):**
-  - przechowuj w `Scene` (lub `DrawingPanel`) flagę `UseNormalMap` (`bool`, domyślnie `false` lub `true` — z domyślnie wczytaną `data/normalmap.png`, aby samo zaznaczenie checkboxa natychmiast aktywowało efekt) oraz aktualnie załadowaną `NormalMap` (`TextureData?`).
+- Dodaj w `MainForm` komponent `System.Windows.Forms.Timer` (`lightAnimationTimer`, `Interval = 33` ms $\approx$ 30 FPS):
+  - **ważne dla WinForms Designera:** w `MainForm.Designer.cs` ustaw `Enabled = false`, a animację uruchamiaj dopiero w konstruktorze uruchomieniowym `MainForm(List<BezierSurface> surfaces)`, aby timer nie tykał w projektancie Visual Studio,
+  - w każdym tyknięciu zwiększaj parametr animacji $t$ o stały krok $\Delta t$ (np. $\Delta t = 0.005$, pełny obieg w $\approx 6.6\text{ s}$), zawijając go cyklicznie `t = (t + dt) % 1f`, przeliczaj `Light.Position = LightCurve.Evaluate3D(t, z)` i wywołuj `drawingPanel.Invalidate()`.
+- **Poprawka suwaka `z` światła (`lightingTrackBar_ValueChanged`):**
+  - zmiana suwaków `kd`, `ks`, `m` lub `z światła` **nie może** resetować `X` i `Y` światła do `(0, 0)` — zachowaj bieżące `(x(t), y(t))` na krzywej i aktualizuj wyłącznie składową `Z` (`light.Position = lightCurve.Evaluate3D(lightT, lightZTrackBar.Value / 10f)`).
+- Pozycja światła musi być ustawiona na krzywej już w chwili startu aplikacji (zanim nastąpi pierwsze rysowanie).
 
-#### 3. Macierz przekształcenia $M_{3\times3}$ i modyfikacja wektora normalnego
+#### 3. Wizualizacja krzywej i położenia światła (`DrawingPanel.cs`)
 
-- Dodaj w `Matrix3x3.cs` prostą metodę fabryczną budującą macierz z trzech wektorów kolumnowych (spójnie z konwencją kolumnową $P' = M \cdot P$ z Decyzji 4):
+- Kolejność warstw w `OnPaint`: tło $\rightarrow$ wypełnione trójkąty $\rightarrow$ siatka $\rightarrow$ wieloboki kontrolne powierzchni $\rightarrow$ osie $\rightarrow$ **krzywa Béziera światła, wielobok kontrolny, uchwyty punktów kontrolnych i marker aktualnego źródła światła** (rysowane na wierzchu, aby zawsze były czytelne i dostępne do edycji).
+- **Rysowanie toru światła** (gdy `ShowLightCurve == true`):
+  - wielobok kontrolny krzywej światła ($V_0 \to V_1 \to \dots \to V_6$): cienka przerywana linia pomocnicza,
+  - krzywa Béziera: łamana z np. 64–100 próbek dla $t \in [0, 1]$ (`DrawLines`, wyraźny kolor, np. `DarkOrange`),
+  - uchwyty punktów kontrolnych $V_0 \dots V_5$ (6 widocznych uchwytów, bo $V_6 = V_0$): wyraźne kółka (promień ~5 px z obwódką; wyróżnienie aktualnie przeciąganego punktu).
+- **Marker aktualnego położenia źródła światła:**
+  - wyraźne kółko (np. promień ~7 px, wypełnione kolorem `Light.LightColor` z ciemną obwódką) rysowane w `ToScreen(Light.Position)` — widoczne na krzywej w czasie animacji i po zatrzymaniu.
 
-```csharp
-public static Matrix3x3 FromColumns(Vector3 c0, Vector3 c1, Vector3 c2)
-```
+#### 4. Interaktywna edycja krzywej myszą (`DrawingPanel.cs`)
 
-- Dla każdego widocznego piksela (dopiero po wygraniu testu Z-buffera!):
-  1. Jeśli potrzebne są $(u, v)$ (aktywna tekstura dla tej powierzchni lub włączona NormalMap), zinterpoluj parametry powierzchni:
-     $$u(P) = \text{Clamp}(\alpha u_A + \beta u_B + \gamma u_C,\ 0,\ 1), \qquad v(P) = \text{Clamp}(\alpha v_A + \beta v_B + \gamma v_C,\ 0,\ 1)$$
-  2. Wyznacz kolor obiektu $I_O(P)$:
-     - dla trybu tekstury: `texture.Sample(u, v)`,
-     - dla trybu jednolitego koloru: stałe `solidColor`.
-  3. Zinterpoluj i znormalizuj wektor normalny powierzchni $N_{\text{powierzchni}}$ (jak w Slice 4).
-  4. Jeśli włączona jest NormalMap (gdy wyłączona — pomiń poniższe obliczenia, aby nie tracić wydajności):
-     - zinterpoluj i znormalizuj obrócone wektory styczne w punkcie $P$ (pamiętaj: `RotPu` i `RotPv` są pochodnymi i nie mają długości 1, dlatego normalizacja przed budową macierzy $M$ jest obowiązkowa!):
-       $$\hat{P}_u = \text{normalize}(\alpha \cdot \text{RotPu}_A + \beta \cdot \text{RotPu}_B + \gamma \cdot \text{RotPu}_C)$$
-       $$\hat{P}_v = \text{normalize}(\alpha \cdot \text{RotPv}_A + \beta \cdot \text{RotPv}_B + \gamma \cdot \text{RotPv}_C)$$
-       (z zabezpieczeniem: jeśli $\|\hat{P}_u\|^2 < 10^{-12}$ lub $\|\hat{P}_v\|^2 < 10^{-12}$, pomiń perturbację i zostaw $N = N_{\text{powierzchni}}$),
-     - zbuduj macierz przestrzeni stycznej:
-       $$M_{3\times3} = [\hat{P}_u,\ \hat{P}_v,\ N_{\text{powierzchni}}]$$
-     - odczytaj z NormalMap wersor $N_{\text{tekstury}} = \text{normalMap.Sample}(u, v)$,
-     - wyznacz zmodyfikowany wektor normalny i znormalizuj go:
-       $$N = \text{normalize}(M \cdot N_{\text{tekstury}})$$
-       (z zabezpieczeniem na wektor zerowy $\rightarrow N_{\text{powierzchni}}$).
-  5. Przekaż `p3D`, `n`, `objectColor` do istniejącego `light.Shade(...)`.
-- Zachowaj `0` alokacji sterty w `FillTriangle` / `FillRow`.
+- Dodaj odwrotną transformację `FromScreen(Point p)` $\rightarrow$ `Vector2` w jednostkach sceny (z zabezpieczeniem przed `scale <= 0`):
+  $$x = \frac{p_x - W/2}{\text{scale}}, \qquad y = \frac{H/2 - p_y}{\text{scale}}$$
+- **Automatyczne rozdzielenie LPM (edycja punktu vs obrót sceny):**
+  - w `OnMouseDown` (dla `MouseButtons.Left`): jeśli `ShowLightCurve == true`, sprawdź odległość ekranową kursora od uchwytów $V_0 \dots V_5$ (promień trafienia np. `10 px`, wybór najbliższego w promieniu),
+  - jeśli trafiono uchwyt `i`: zapamiętaj `draggedControlPoint = i` i przejdź w tryb przeciągania punktu (nie obracaj sceny),
+  - jeśli nie trafiono żadnego uchwytu: zachowaj dotychczasowy obrót sceny LPM (PPM bez zmian — obrót wokół osi `Z`).
+- w `OnMouseMove`:
+  - gdy `draggedControlPoint >= 0` i wciśnięty LPM: przelicz pozycję myszy przez `FromScreen(e.Location)`, wywołaj `LightCurve.SetPoint(draggedControlPoint, pt)`, natychmiast zaktualizuj `Light.Position` dla bieżącego parametru $t$ (tak aby nawet przy zatrzymanej animacji światło i cieniowanie powierzchni na żywo podążały za krzywą!) i wywołaj `Invalidate()`.
+- w `OnMouseUp`: zresetuj `draggedControlPoint = -1`.
 
-#### 4. Kontrolki UI (`MainForm.Designer.cs` + `MainForm.cs`)
+#### 5. Kontrolki UI (`MainForm.Designer.cs` + `MainForm.cs`)
 
-W `controlPanel` (utrzymuj czystość `MainForm.Designer.cs` — wyłącznie układ kontrolek i podpięcie zdarzeń; `AutoScroll = true` już działa):
+W `controlPanel` (czystość `MainForm.Designer.cs` — wyłącznie układ kontrolek, `lightAnimationTimer` z `Enabled = false` i podpięcie zdarzeń):
 
-- **Sekcja koloru obiektu $I_O$ (niezależnie dla każdej powierzchni):**
-  - `ComboBox` wyboru powierzchni (`surfaceComboBox`, `DropDownStyle = DropDownList`, wypełniany dynamicznie przy starcie: „Powierzchnia 1”, „Powierzchnia 2”, ...),
-  - dwa przyciski radiowe (`RadioButton`, np. w `GroupBox` „Kolor obiektu”):
-    - „Jednolity kolor” (`solidColorRadioButton`),
-    - „Tekstura” (`textureRadioButton`),
-  - przycisk „Kolor obiektu” (`objectColorButton`, otwiera `ColorDialog` i pokazuje podgląd koloru wybranej powierzchni),
-  - przycisk „Wczytaj teksturę...” (`loadTextureButton`, otwiera `OpenFileDialog` z filtrem obrazów `*.png;*.jpg;*.jpeg;*.bmp` — w razie błędu pliku pokaż `MessageBox` bez nadpisywania aktualnej tekstury).
-- **Sekcja mapy wektorów normalnych:**
-  - `CheckBox` „Mapa normalnych” (`useNormalMapCheckBox`),
-  - przycisk „Wczytaj NormalMap...” (`loadNormalMapButton`, `OpenFileDialog` z obsługą błędu pliku).
-- **Synchronizacja UI przy zmianie wybranej powierzchni:** podczas przełączania `surfaceComboBox` ustaw flagę blokującą (np. `isSyncingUi = true`), aby aktualizacja `Checked` w `RadioButton` nie nadpisała ustawień innej powierzchni.
+- `CheckBox` „Animacja światła” (`animateLightCheckBox`, domyślnie zaznaczony) — zatrzymuje / wznawia `lightAnimationTimer`,
+- `CheckBox` „Pokaż krzywą światła” (`showLightCurveCheckBox`, domyślnie zaznaczony) — włącza / wyłącza rysowanie krzywej i uchwytów (gdy wyłączony, LPM nie chwyta ukrytych punktów kontrolnych).
 
-### Czego NIE robić w Slice 5
+### Czego NIE robić w Slice 6
 
-- Nie implementuj jeszcze animacji źródła światła ani zamkniętej krzywej Béziera dla światła (to zostaje na Slice 6).
-- Nie używaj `Bitmap.GetPixel()` w pętli rasteryzacji.
-- Nie zmieniaj algorytmu AET ani logiki Z-buffera.
-- Nie dodawaj filtrowania dwuliniowego (bilinear) ani mipmap — prosty nearest-neighbor z clampingiem `[0, 1]` w zupełności wystarcza i zachowuje prostotę (*Simplicity First*).
+- Nie dodawaj dodawania/usuwania punktów kontrolnych krzywej — stałe 7 punktów ($V_0 \dots V_6$, $V_6 = V_0$).
+- Nie dodawaj osobnej edycji współrzędnej `z` per punkt krzywej — krzywa leży na płaszczyźnie $z = \text{const}$ sterowanej suwakiem.
+- Nie obracaj krzywej światła razem z `Scene.Orientation`.
+- Nie zmieniaj algorytmu rasteryzacji AET, Z-buffera ani modelu oświetlenia/NormalMap.
+- Nie ustawiaj `lightAnimationTimer.Enabled = true` w `MainForm.Designer.cs`.
 
-### Review / LLM-as-a-judge (OBOWIĄZKOWY w Slice 5)
+### Review / LLM-as-a-judge (OBOWIĄZKOWY w Slice 6)
 
-Po napisaniu kodu przeprowadź niezależną weryfikację (*review* / *judge*) pod kątem najczęstszych błędów w teksturowaniu i NormalMap:
+Po napisaniu kodu przeprowadź niezależną weryfikację (*review* / *judge*) pod kątem najczęstszych błędów w animacji i edycji krzywej Béziera:
 
-1. **Normalizacja kolumn macierzy $M$:** czy `RotPu` i `RotPv` są interpolowane z obróconych wektorów i normalizowane przed wstawieniem jako kolumny `Matrix3x3.FromColumns(pu, pv, nSurf)`, oraz czy wynik $N = M \cdot N_{\text{tekstury}}$ jest normalizowany?
-2. **Dekodowanie NormalMap:** czy `RGB(127, 127, 255)` daje $N_{\text{tekstury}} \approx (0, 0, 1)$ i czy dla płaskiej mapy normalnych (całej `(127, 127, 255)`) wynik cieniowania jest identyczny jak przy wyłączonej NormalMap?
-3. **Bezpieczeństwo $(u, v)$ i wydajność:** czy $(u, v)$ są zaciskane do $[0, 1]$ przed indeksowaniem tablicy (brak `IndexOutOfRangeException` na krawędziach trójkątów), czy piksele obrazu są wyciągane raz przez `LockBits` (zero `GetPixel`), oraz czy przy wyłączonej NormalMap pomijana jest interpolacja `Pu`, `Pv`?
-4. **Niezależność powierzchni i synchronizacja UI:** czy zmiana trybu (kolor/tekstura), koloru lub wczytanie innej tekstury dla Powierzchni 1 nie wpływa na Powierzchnię 2, oraz czy przełączanie `surfaceComboBox` poprawnie odzwierciedla stan każdej powierzchni bez nadpisywania go?
-5. **Zasoby, błędy plików i Designer:** czy tymczasowe `Bitmap` przy ładowaniu tekstur są zwalniane (`using`), czy uszkodzony plik obrazu nie crashuje aplikacji, czy `FillTriangle` zachowuje `0 B` alokacji oraz czy `MainForm.Designer.cs` pozostał czysty?
+1. **Domknięcie krzywej ($V_6 = V_0$) i de Casteljau:** czy krzywa ma co najmniej 7 punktów ($V_0 \dots V_6$), czy `Evaluate(0) == V_0` i `Evaluate(1) == V_6 == V_0` (brak skoku przy zawijaniu $t: 1 \to 0$), oraz czy przesunięcie $V_0$ aktualizuje jednocześnie $V_6$?
+2. **Spójność współrzędnych i suwaka `z`:** czy `ToScreen(FromScreen(p))` wraca do punktu `p` (poprawny znak osi `Y`), czy zmiana suwaków `z`, `kd`, `ks`, `m` zachowuje bieżące `(x(t), y(t))` światła zamiast zerować je do `(0, 0)`, oraz czy marker światła zawsze leży dokładnie na narysowanej krzywej?
+3. **Edycja myszą vs obrót sceny:** czy LPM na uchwycie przesuwa wyłącznie ten punkt bez obracania sceny, LPM poza uchwytami obraca scenę jak dotąd, PPM zawsze obraca wokół `Z`, a po odznaczeniu „Pokaż krzywą światła” nie da się przypadkowo chwycić niewidocznego uchwytu?
+4. **Aktualizacja na żywo przy zatrzymanej animacji:** czy po zatrzymaniu animacji i przeciągnięciu punktu kontrolnego (lub zmianie suwaka `z`) pozycja markera i cieniowanie powierzchni odświeżają się natychmiast?
+5. **Zasoby, alokacje i Designer:** czy `Evaluate` nie alokuje tablic na stercie, czy `lightAnimationTimer` jest wyłączony w `MainForm.Designer.cs` i poprawnie zwalniany przy zamknięciu okna, oraz czy `MainForm.Designer.cs` nie zawiera logiki domenowej?
 
-### Po zakończeniu Slice 5 (obowiązkowy wpis do `guidelines.md`)
+### Po zakończeniu Slice 6 (obowiązkowy wpis do `guidelines.md`)
 
-Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis Slice 5:
+Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis Slice 6:
 
-- listę utworzonych/zmodyfikowanych plików w `src/` oraz dodanych domyślnych plików obrazów w `data/`,
-- przyjęte założenia (format i rozdzielczość domyślnych plików w `data/`, mapowanie `v` vs `1 - v`, zachowanie startowe powierzchni, sposób zarządzania `SurfaceAppearance`),
-- wyniki weryfikacji (w tym podsumowanie review/judge i pomiar czasu klatki z włączoną teksturą oraz NormalMap):
-  - niezależne przełączanie jednolity kolor $\leftrightarrow$ tekstura oraz wczytywanie osobnych tekstur/kolorów dla Powierzchni 1 i Powierzchni 2,
-  - poprawny efekt 3D reliefu po włączeniu NormalMap (wyraźna reakcja wypukłości/rowków na obrót sceny myszą i na suwaki $k_d, k_s, m, z_L$),
-  - brak różnicy (poza zaokrągleniem `127/255`) między płaską NormalMap `(127, 127, 255)` a wyłączoną NormalMap,
-  - płynność obrotu myszą przy $k = 16$ z włączoną teksturą i NormalMap,
+- listę utworzonych/zmodyfikowanych plików w `src/`,
+- przyjęte założenia (domyślne współrzędne 7 punktów krzywej, interwał timera i krok $\Delta t$, promień trafienia uchwytu, zachowanie widoczności markera po ukryciu krzywej),
+- wyniki weryfikacji (w tym podsumowanie review/judge):
+  - płynny, cykliczny ruch światła po zamkniętej krzywej bez skoku w punkcie $V_0 = V_6$ (widoczne przemieszczanie się odblasków i cieni na obu powierzchniach, w tym z włączoną NormalMap),
+  - zatrzymywanie i wznawianie animacji oraz płynna zmiana wysokości $z$ suwakiem bez przeskoku `X/Y`,
+  - edycja każdego z 6 uchwytów ($V_0 = V_6$ oraz $V_1 \dots V_5$) bez konfliktu z obrotem sceny LPM/PPM, zarówno podczas animacji, jak i po jej zatrzymaniu,
   - poprawność ładowania `MainForm` w Designerze Visual Studio 2022,
-- potwierdzenie gotowości do przejścia do Slice 6 (animowane i edytowalne źródło światła na zamkniętej krzywej Béziera).
+- podsumowanie ukończenia wszystkich wymagań projektu (Slice 1–6).
 
 ## 6. Dziennik slice'ów i decyzji
 - **Decyzja 1:** Start na **.NET 9** (`net9.0-windows`, Visual Studio 2022) + **WinForms** z planem łatwej migracji `TargetFramework` na **.NET 10** w przyszłości; praca małymi vertical slices z aktualizacją `guidelines.md` po każdym etapie.
@@ -195,6 +175,7 @@ Dopisz w sekcji **Dziennik slice'ów i decyzji** wpis Slice 5:
   - Równanie bez składowej ambient ($I = k_d I_L I_O \cos(\angle(N, L)) + k_s I_L I_O \cos^m(\angle(V, R))$), liczone w $[0, 1]$ per kanał R, G, B.
   - **Dwustronność (interpretacja skreślonego zdania o ujemnym cosinusie):** zamiast odrzucać tylną stronę powierzchni, odwracamy zinterpolowany wektor normalny ($N = -N$) zawsze, gdy wskazuje od obserwatora ($N_z < 0$). Dla tak zorientowanej widocznej strony, jeśli światło jest za nią ($\langle N, L \rangle \le 0$), składowe wynoszą `0`, a $\langle V, R \rangle$ ograniczamy do $\ge 0$ (chroni przed ujemnym natężeniem przy nieparzystym $m$ i fałszywymi refleksami przy parzystym $m$).
   - Tymczasowe statyczne światło w $(0, 0, z_L)$ z suwakiem $z_L \in [0.5, 5.0]$ (domyślnie `2.0`); kolor/tekstura per powierzchnia i NormalMap wchodzą w **Slice 5**, a ruchoma/edytowalna krzywa Béziera światła w **Slice 6**.
+- **Decyzja 8 (Slice 6 — zamknięta krzywa Béziera światła i edycja myszą):** Pojedyncza zamknięta krzywa Béziera stopnia 6 (7 punktów kontrolnych $V_0 \dots V_6$ z niezmiennikiem $V_6 = V_0$, oceniana algorytmem de Casteljau na płaszczyźnie $z = z_L$ w układzie obserwatora); edycja przez przeciąganie istniejących 6 uchwytów $V_0 \dots V_5$ (przesunięcie $V_0$ sprzężone z $V_6$); automatyczne rozdzielenie LPM (trafienie w uchwyt przesuwa punkt krzywej, LPM poza uchwytami obraca scenę jak dotąd, PPM nadal obraca wokół osi `Z`).
 - *(Wpisy z realizacji kolejnych slice'ów będą dopisywane po wykonaniu każdego etapu.)*
 
 ### Slice 1 — wykonany (2026-11-22)

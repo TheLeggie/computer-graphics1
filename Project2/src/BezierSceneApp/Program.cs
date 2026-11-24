@@ -2,7 +2,7 @@ namespace BezierSceneApp
 {
     internal static class Program
     {
-        // plik danych kopiowany z ../../data do bin/.../data (patrz csproj)
+        // plik danych kopiowany z data/
         private const string DataFile = "surfaces.txt";
 
         /// <summary>

@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace BezierSceneApp;
 
-// zrodlo koloru obiektu I_O dla jednej powierzchni
+// zrodlo koloru obiektu I_O dla jednej powierzchni, stały kolor lub tekstura
 public class SurfaceAppearance
 {
     public bool UseTexture;

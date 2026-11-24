@@ -5,7 +5,6 @@ namespace BezierSceneApp
 {
     public partial class MainForm : Form
     {
-        // domyslne obrazy kopiowane z ../../data do bin/.../data (patrz csproj)
         private const string DefaultTextureFile = "texture.png";
         private const string DefaultNormalMapFile = "normalmap.png";
 
@@ -27,7 +26,7 @@ namespace BezierSceneApp
             TextureData? texture = LoadImage(Path.Combine(dataDir, DefaultTextureFile), false);
             foreach (SurfaceAppearance look in scene.Appearances)
                 look.Texture = texture;
-            // start: 1. powierzchnia jednolity kolor, 2. tekstura (od razu widac niezaleznosc I_O)
+            // start: 1. powierzchnia jednolity kolor, 2. tekstura
             scene.Appearances[1].UseTexture = true;
             scene.NormalMap = LoadImage(Path.Combine(dataDir, DefaultNormalMapFile), true);
 

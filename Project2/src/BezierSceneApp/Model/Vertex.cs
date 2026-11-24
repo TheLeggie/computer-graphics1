@@ -2,7 +2,9 @@
 
 namespace BezierSceneApp;
 
-// wierzcholek siatki: wartosci przed obrotem (P, Pu, Pv, N) i po obrocie (Rot)
+/// <summary>
+/// Wierzcholek siatki: wartosci przed obrotem (P, Pu, Pv, N) i po obrocie (Rot)
+/// </summary>
 public class Vertex
 {
     public Vector3 P, Pu, Pv, N;

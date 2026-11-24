@@ -2,12 +2,14 @@ using System.Numerics;
 
 namespace BezierSceneApp
 {
-    // powierzchnia beziera 3. stopnia: siatka 4x4 punktow kontrolnych
+    /// <summary>
+    /// Powierzchnia Beziera 3. stopnia, siatka 4x4 punktów kontrolnych
+    /// </summary>
     public class BezierSurface
     {
         public const int Size = 4;
 
-        // ControlPoints[i, j]: i - wiersz, j - kolumna
+        // i - wiersz, j - kolumna
         public Vector3[,] ControlPoints { get; } = new Vector3[Size, Size];
 
         // punkty kontrolne po obrocie (do rysowania wieloboku)
@@ -20,7 +22,7 @@ namespace BezierSceneApp
                     RotatedControlPoints[i, j] = r.Transform(ControlPoints[i, j]);
         }
 
-        // siatka k x k oczek, (k + 1) x (k + 1) wierzcholkow; u - indeks i, v - indeks j
+        // siatka k x k, (k + 1) x (k + 1) wierzcholkow; u - indeks i, v - indeks j
         public Mesh Triangulate(int k)
         {
             var mesh = new Mesh();
@@ -47,6 +49,12 @@ namespace BezierSceneApp
             return mesh;
         }
 
+        /// <summary>
+        /// Wyliczenie punktu na powierzchni i wektorów stycznych z zadanymi u i v
+        /// </summary>
+        /// <param name="u"></param>
+        /// <param name="v"></param>
+        /// <returns></returns>
         private Vertex Evaluate(float u, float v)
         {
             float[] bu3 = Bernstein3(u), bv3 = Bernstein3(v);

@@ -43,7 +43,7 @@ namespace BezierSceneApp
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public LightSettings Light { get; } = new();
 
-        // warstwy: tlo -> wypelnione trojkaty -> siatka -> wieloboki -> osie
+        // warstwy: tło - wypelnione trojkaty - siatka - wieloboki
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -79,7 +79,7 @@ namespace BezierSceneApp
             lastMouse = e.Location;
         }
 
-        // LPM: dx -> os Y, dy -> os X; PPM: dx -> os Z; obrot narastajacy, bez limitu katow
+        // LPM: oś Y i oś X, PPM: oś Z
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
@@ -92,7 +92,7 @@ namespace BezierSceneApp
             if (dx == 0f && dy == 0f)
                 return;
 
-            // dy ekranowe rosnie w dol: dodatni kat wokol X przesuwa przod sceny w dol
+            // dy ekranowe rosnie w dol: dodatni kąt wokol X przesuwa przod sceny w dol
             Matrix3x3 increment = e.Button == MouseButtons.Left
                 ? Matrix3x3.CreateRotationX(dy) * Matrix3x3.CreateRotationY(dx)
                 : Matrix3x3.CreateRotationZ(-dx); // ruch w prawo -> obrot zgodny z ruchem wskazowek
@@ -100,7 +100,7 @@ namespace BezierSceneApp
             Invalidate();
         }
 
-        // rzut prostokatny na plaszczyzne xy (z pomijane); odwrocenie Y wzgledem ekranu
+        // rzut prostokatny na plaszczyzne xy, odwrocenie Y wzgledem ekranu
         private PointF ToScreen(Vector3 p)
         {
             float scale = ScaleFactor * Math.Min(ClientSize.Width, ClientSize.Height);

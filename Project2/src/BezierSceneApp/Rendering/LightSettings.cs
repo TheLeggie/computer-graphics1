@@ -2,7 +2,9 @@ using System.Numerics;
 
 namespace BezierSceneApp;
 
-// parametry oswietlenia (lambert + zwierciadlane, bez ambient); kolory w [0, 1]
+/// <summary>
+/// Parametry oświetlenia
+/// </summary>
 public class LightSettings
 {
     private const float DegenerateEpsilon = 1e-12f;
