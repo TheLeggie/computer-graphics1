@@ -84,7 +84,7 @@ namespace BezierSceneApp
             Light.Position = LightCurve.Evaluate3D(LightT, Light.Position.Z);
         }
 
-        // warstwy: tło - wypelnione trojkaty - siatka - wieloboki - osie - tor i zrodlo swiatla
+        // warstwy: tło - wypelnione trojkaty - siatka - wieloboki - tor i zrodlo swiatla
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -104,7 +104,6 @@ namespace BezierSceneApp
                         DrawControlPolygon(g, s);
             }
 
-            DrawAxes(g);
             if (ShowLightCurve)
                 DrawLightCurve(g);
         }
@@ -220,17 +219,6 @@ namespace BezierSceneApp
                 }
             }
             return best;
-        }
-
-        // pomocnicze osie do weryfikacji polozenia (0, 0) i kierunku Y
-        private void DrawAxes(Graphics g)
-        {
-            PointF o = ToScreen(Vector3.Zero);
-            using var pen = new Pen(Color.LightGray);
-            g.DrawLine(pen, 0, o.Y, ClientSize.Width, o.Y);
-            g.DrawLine(pen, o.X, 0, o.X, ClientSize.Height);
-            g.DrawString("+X", Font, Brushes.Gray, ToScreen(new Vector3(1f, 0f, 0f)));
-            g.DrawString("+Y", Font, Brushes.Gray, ToScreen(new Vector3(0f, 1f, 0f)));
         }
 
         private void DrawFilled(Graphics g, Scene scene)

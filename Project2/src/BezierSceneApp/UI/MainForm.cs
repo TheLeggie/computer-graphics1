@@ -211,5 +211,56 @@ namespace BezierSceneApp
             drawingPanel.Light.LightColor = LightSettings.ToVector(lightColorDialog.Color);
             drawingPanel.Invalidate();
         }
+
+        private void helpMenuItem_Click(object? sender, EventArgs e)
+        {
+            const string helpText =
+                "STEROWANIE MYSZĄ\r\n" +
+                "• LPM (poza uchwytami krzywej) — obrót sceny wokół osi X i Y.\r\n" +
+                "• PPM — obrót sceny wokół osi Z.\r\n" +
+                "• LPM na uchwycie krzywej światła (V0..V5) — przeciąganie punktu kontrolnego (V6 = V0).\r\n\r\n" +
+                "PRAWY PANEL STEROWANIA\r\n" +
+                "• Dokładność triangulacji — podział k ∈ [4, 40] (2k² trójkątów na powierzchnię).\r\n" +
+                "• Wieloboki Béziera / Siatka trójkątów / Wypełnione trójkąty — widoczność warstw.\r\n" +
+                "• kd, ks, m — współczynnik rozproszenia, odbicia zwierciadlanego i wykładnik połysku.\r\n" +
+                "• z światła — wysokość płaszczyzny z = const źródła światła.\r\n" +
+                "• Kolor światła — wybór barwy źródła światła IL.\r\n" +
+                "• Animacja światła — start / pauza ruchu źródła światła po krzywej.\r\n" +
+                "• Pokaż krzywą światła — widoczność i edycja toru oraz znacznika światła.\r\n" +
+                "• Wybór powierzchni + Kolor obiektu — niezależny tryb (jednolity kolor / tekstura), wybór koloru i wczytanie tekstury IO.\r\n" +
+                "• Mapa normalnych / Wczytaj NormalMap... — włączenie i wybór mapy normalnych.\r\n\r\n" +
+                "KLUCZOWE ALGORYTMY I ZAŁOŻENIA\r\n" +
+                "• Powierzchnie Béziera st. 3: tensorowy iloczyn Bernsteina (4×4), analityczne Pu, Pv i N = Pu × Pv.\r\n" +
+                "• Układ 3D i obrót: prawoskrętny (+Z do obserwatora, V = [0, 0, 1]), rzut prostokątny na xy; własna macierz 3×3 składana narastająco i aplikowana do oryginalnych wierzchołków.\r\n" +
+                "• Rasteryzacja i Z-buffer: skanlinia AET z sortowaniem wierzchołków do bufora int[] (LockBits + Marshal.Copy), interpolacja barycentryczna z, P3D, N, (u, v), Pu, Pv; test Z-buffera (większe z) przed cieniowaniem.\r\n" +
+                "• Oświetlenie i NormalMap: model Phonga bez ambient (kd·<N,L> + ks·<V,R>^m), dwustronność przez odwrócenie N przy Nz < 0; perturbacja w bazie stycznej M = [Pu, Pv, Npow], N' = norm(M·Ntex).\r\n" +
+                "• Tor światła: zamknięta krzywa Béziera st. 6 (7 pkt, V6 = V0) na płaszczyźnie z = const w układzie obserwatora, ewaluowana algorytmem de Casteljau.";
+
+            using var dlg = new Form
+            {
+                Text = "Help — Bezier Scene",
+                ClientSize = new Size(560, 440),
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false,
+                MaximizeBox = false,
+                FormBorderStyle = FormBorderStyle.FixedDialog
+            };
+            using var box = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.None,
+                BackColor = SystemColors.Window,
+                Font = new Font("Segoe UI", 9.5f),
+                Text = helpText,
+                SelectionStart = 0,
+                SelectionLength = 0
+            };
+            dlg.Padding = new Padding(12);
+            dlg.Controls.Add(box);
+            dlg.ShowDialog(this);
+        }
     }
 }

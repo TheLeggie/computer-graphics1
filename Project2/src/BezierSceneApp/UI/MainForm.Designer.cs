@@ -29,6 +29,8 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            menuStrip = new MenuStrip();
+            helpMenuItem = new ToolStripMenuItem();
             drawingPanel = new DrawingPanel();
             controlPanel = new Panel();
             showFilledCheckBox = new CheckBox();
@@ -59,6 +61,7 @@
             objectColorDialog = new ColorDialog();
             imageOpenFileDialog = new OpenFileDialog();
             lightAnimationTimer = new System.Windows.Forms.Timer(components);
+            menuStrip.SuspendLayout();
             controlPanel.SuspendLayout();
             objectColorGroupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)divisionsTrackBar).BeginInit();
@@ -68,13 +71,28 @@
             ((System.ComponentModel.ISupportInitialize)lightZTrackBar).BeginInit();
             SuspendLayout();
             // 
+            // menuStrip
+            // 
+            menuStrip.Items.AddRange(new ToolStripItem[] { helpMenuItem });
+            menuStrip.Location = new Point(0, 0);
+            menuStrip.Name = "menuStrip";
+            menuStrip.Size = new Size(1000, 24);
+            menuStrip.TabIndex = 2;
+            // 
+            // helpMenuItem
+            // 
+            helpMenuItem.Name = "helpMenuItem";
+            helpMenuItem.Size = new Size(44, 20);
+            helpMenuItem.Text = "Help";
+            helpMenuItem.Click += helpMenuItem_Click;
+            // 
             // drawingPanel
             // 
             drawingPanel.BackColor = Color.White;
             drawingPanel.Dock = DockStyle.Fill;
-            drawingPanel.Location = new Point(0, 0);
+            drawingPanel.Location = new Point(0, 24);
             drawingPanel.Name = "drawingPanel";
-            drawingPanel.Size = new Size(800, 785);
+            drawingPanel.Size = new Size(800, 626);
             drawingPanel.TabIndex = 0;
             // 
             // controlPanel
@@ -101,10 +119,10 @@
             controlPanel.Controls.Add(divisionsTrackBar);
             controlPanel.Controls.Add(divisionsLabel);
             controlPanel.Dock = DockStyle.Right;
-            controlPanel.Location = new Point(800, 0);
+            controlPanel.Location = new Point(800, 24);
             controlPanel.Name = "controlPanel";
-            controlPanel.Padding = new Padding(8);
-            controlPanel.Size = new Size(200, 785);
+            controlPanel.Padding = new Padding(6);
+            controlPanel.Size = new Size(200, 626);
             controlPanel.TabIndex = 1;
             // 
             // showFilledCheckBox
@@ -112,7 +130,7 @@
             showFilledCheckBox.AutoSize = true;
             showFilledCheckBox.Checked = true;
             showFilledCheckBox.CheckState = CheckState.Checked;
-            showFilledCheckBox.Location = new Point(11, 140);
+            showFilledCheckBox.Location = new Point(11, 94);
             showFilledCheckBox.Name = "showFilledCheckBox";
             showFilledCheckBox.Size = new Size(138, 19);
             showFilledCheckBox.TabIndex = 4;
@@ -125,7 +143,7 @@
             showMeshCheckBox.AutoSize = true;
             showMeshCheckBox.Checked = true;
             showMeshCheckBox.CheckState = CheckState.Checked;
-            showMeshCheckBox.Location = new Point(11, 115);
+            showMeshCheckBox.Location = new Point(11, 74);
             showMeshCheckBox.Name = "showMeshCheckBox";
             showMeshCheckBox.Size = new Size(117, 19);
             showMeshCheckBox.TabIndex = 3;
@@ -138,7 +156,7 @@
             showPolygonsCheckBox.AutoSize = true;
             showPolygonsCheckBox.Checked = true;
             showPolygonsCheckBox.CheckState = CheckState.Checked;
-            showPolygonsCheckBox.Location = new Point(11, 90);
+            showPolygonsCheckBox.Location = new Point(11, 54);
             showPolygonsCheckBox.Name = "showPolygonsCheckBox";
             showPolygonsCheckBox.Size = new Size(126, 19);
             showPolygonsCheckBox.TabIndex = 2;
@@ -148,11 +166,12 @@
             // 
             // divisionsTrackBar
             // 
-            divisionsTrackBar.Location = new Point(11, 30);
+            divisionsTrackBar.AutoSize = false;
+            divisionsTrackBar.Location = new Point(11, 22);
             divisionsTrackBar.Maximum = 40;
             divisionsTrackBar.Minimum = 4;
             divisionsTrackBar.Name = "divisionsTrackBar";
-            divisionsTrackBar.Size = new Size(178, 45);
+            divisionsTrackBar.Size = new Size(178, 28);
             divisionsTrackBar.TabIndex = 1;
             divisionsTrackBar.TickFrequency = 4;
             divisionsTrackBar.Value = 16;
@@ -161,7 +180,7 @@
             // divisionsLabel
             // 
             divisionsLabel.AutoSize = true;
-            divisionsLabel.Location = new Point(11, 10);
+            divisionsLabel.Location = new Point(11, 6);
             divisionsLabel.Name = "divisionsLabel";
             divisionsLabel.Size = new Size(140, 15);
             divisionsLabel.TabIndex = 0;
@@ -170,7 +189,7 @@
             // kdLabel
             // 
             kdLabel.AutoSize = true;
-            kdLabel.Location = new Point(11, 175);
+            kdLabel.Location = new Point(11, 119);
             kdLabel.Name = "kdLabel";
             kdLabel.Size = new Size(50, 15);
             kdLabel.TabIndex = 5;
@@ -178,10 +197,11 @@
             // 
             // kdTrackBar
             // 
-            kdTrackBar.Location = new Point(11, 195);
+            kdTrackBar.AutoSize = false;
+            kdTrackBar.Location = new Point(11, 135);
             kdTrackBar.Maximum = 100;
             kdTrackBar.Name = "kdTrackBar";
-            kdTrackBar.Size = new Size(178, 45);
+            kdTrackBar.Size = new Size(178, 28);
             kdTrackBar.TabIndex = 6;
             kdTrackBar.TickFrequency = 10;
             kdTrackBar.Value = 70;
@@ -190,7 +210,7 @@
             // ksLabel
             // 
             ksLabel.AutoSize = true;
-            ksLabel.Location = new Point(11, 245);
+            ksLabel.Location = new Point(11, 167);
             ksLabel.Name = "ksLabel";
             ksLabel.Size = new Size(50, 15);
             ksLabel.TabIndex = 7;
@@ -198,10 +218,11 @@
             // 
             // ksTrackBar
             // 
-            ksTrackBar.Location = new Point(11, 265);
+            ksTrackBar.AutoSize = false;
+            ksTrackBar.Location = new Point(11, 183);
             ksTrackBar.Maximum = 100;
             ksTrackBar.Name = "ksTrackBar";
-            ksTrackBar.Size = new Size(178, 45);
+            ksTrackBar.Size = new Size(178, 28);
             ksTrackBar.TabIndex = 8;
             ksTrackBar.TickFrequency = 10;
             ksTrackBar.Value = 50;
@@ -210,7 +231,7 @@
             // mLabel
             // 
             mLabel.AutoSize = true;
-            mLabel.Location = new Point(11, 315);
+            mLabel.Location = new Point(11, 215);
             mLabel.Name = "mLabel";
             mLabel.Size = new Size(40, 15);
             mLabel.TabIndex = 9;
@@ -218,11 +239,12 @@
             // 
             // mTrackBar
             // 
-            mTrackBar.Location = new Point(11, 335);
+            mTrackBar.AutoSize = false;
+            mTrackBar.Location = new Point(11, 231);
             mTrackBar.Maximum = 100;
             mTrackBar.Minimum = 1;
             mTrackBar.Name = "mTrackBar";
-            mTrackBar.Size = new Size(178, 45);
+            mTrackBar.Size = new Size(178, 28);
             mTrackBar.TabIndex = 10;
             mTrackBar.TickFrequency = 10;
             mTrackBar.Value = 20;
@@ -231,7 +253,7 @@
             // lightZLabel
             // 
             lightZLabel.AutoSize = true;
-            lightZLabel.Location = new Point(11, 385);
+            lightZLabel.Location = new Point(11, 263);
             lightZLabel.Name = "lightZLabel";
             lightZLabel.Size = new Size(80, 15);
             lightZLabel.TabIndex = 11;
@@ -239,11 +261,12 @@
             // 
             // lightZTrackBar
             // 
-            lightZTrackBar.Location = new Point(11, 405);
+            lightZTrackBar.AutoSize = false;
+            lightZTrackBar.Location = new Point(11, 279);
             lightZTrackBar.Maximum = 50;
             lightZTrackBar.Minimum = 5;
             lightZTrackBar.Name = "lightZTrackBar";
-            lightZTrackBar.Size = new Size(178, 45);
+            lightZTrackBar.Size = new Size(178, 28);
             lightZTrackBar.TabIndex = 12;
             lightZTrackBar.TickFrequency = 5;
             lightZTrackBar.Value = 20;
@@ -252,9 +275,9 @@
             // lightColorButton
             // 
             lightColorButton.BackColor = Color.White;
-            lightColorButton.Location = new Point(11, 455);
+            lightColorButton.Location = new Point(11, 313);
             lightColorButton.Name = "lightColorButton";
-            lightColorButton.Size = new Size(178, 27);
+            lightColorButton.Size = new Size(178, 25);
             lightColorButton.TabIndex = 13;
             lightColorButton.Text = "Kolor światła";
             lightColorButton.UseVisualStyleBackColor = false;
@@ -265,7 +288,7 @@
             animateLightCheckBox.AutoSize = true;
             animateLightCheckBox.Checked = true;
             animateLightCheckBox.CheckState = CheckState.Checked;
-            animateLightCheckBox.Location = new Point(11, 490);
+            animateLightCheckBox.Location = new Point(11, 343);
             animateLightCheckBox.Name = "animateLightCheckBox";
             animateLightCheckBox.Size = new Size(115, 19);
             animateLightCheckBox.TabIndex = 14;
@@ -278,7 +301,7 @@
             showLightCurveCheckBox.AutoSize = true;
             showLightCurveCheckBox.Checked = true;
             showLightCurveCheckBox.CheckState = CheckState.Checked;
-            showLightCurveCheckBox.Location = new Point(11, 515);
+            showLightCurveCheckBox.Location = new Point(11, 363);
             showLightCurveCheckBox.Name = "showLightCurveCheckBox";
             showLightCurveCheckBox.Size = new Size(138, 19);
             showLightCurveCheckBox.TabIndex = 15;
@@ -294,7 +317,7 @@
             // surfaceComboBox
             // 
             surfaceComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            surfaceComboBox.Location = new Point(11, 548);
+            surfaceComboBox.Location = new Point(11, 388);
             surfaceComboBox.Name = "surfaceComboBox";
             surfaceComboBox.Size = new Size(178, 23);
             surfaceComboBox.TabIndex = 16;
@@ -306,9 +329,9 @@
             objectColorGroupBox.Controls.Add(objectColorButton);
             objectColorGroupBox.Controls.Add(textureRadioButton);
             objectColorGroupBox.Controls.Add(solidColorRadioButton);
-            objectColorGroupBox.Location = new Point(11, 578);
+            objectColorGroupBox.Location = new Point(11, 416);
             objectColorGroupBox.Name = "objectColorGroupBox";
-            objectColorGroupBox.Size = new Size(178, 135);
+            objectColorGroupBox.Size = new Size(178, 120);
             objectColorGroupBox.TabIndex = 17;
             objectColorGroupBox.TabStop = false;
             objectColorGroupBox.Text = "Kolor obiektu";
@@ -317,7 +340,7 @@
             // 
             solidColorRadioButton.AutoSize = true;
             solidColorRadioButton.Checked = true;
-            solidColorRadioButton.Location = new Point(8, 22);
+            solidColorRadioButton.Location = new Point(8, 18);
             solidColorRadioButton.Name = "solidColorRadioButton";
             solidColorRadioButton.Size = new Size(110, 19);
             solidColorRadioButton.TabIndex = 0;
@@ -328,7 +351,7 @@
             // textureRadioButton
             // 
             textureRadioButton.AutoSize = true;
-            textureRadioButton.Location = new Point(8, 45);
+            textureRadioButton.Location = new Point(8, 38);
             textureRadioButton.Name = "textureRadioButton";
             textureRadioButton.Size = new Size(71, 19);
             textureRadioButton.TabIndex = 1;
@@ -338,9 +361,9 @@
             // 
             // objectColorButton
             // 
-            objectColorButton.Location = new Point(8, 70);
+            objectColorButton.Location = new Point(8, 60);
             objectColorButton.Name = "objectColorButton";
-            objectColorButton.Size = new Size(162, 27);
+            objectColorButton.Size = new Size(162, 25);
             objectColorButton.TabIndex = 2;
             objectColorButton.Text = "Kolor obiektu";
             objectColorButton.UseVisualStyleBackColor = false;
@@ -348,9 +371,9 @@
             // 
             // loadTextureButton
             // 
-            loadTextureButton.Location = new Point(8, 100);
+            loadTextureButton.Location = new Point(8, 89);
             loadTextureButton.Name = "loadTextureButton";
-            loadTextureButton.Size = new Size(162, 27);
+            loadTextureButton.Size = new Size(162, 25);
             loadTextureButton.TabIndex = 3;
             loadTextureButton.Text = "Wczytaj teksturę...";
             loadTextureButton.UseVisualStyleBackColor = true;
@@ -359,7 +382,7 @@
             // useNormalMapCheckBox
             // 
             useNormalMapCheckBox.AutoSize = true;
-            useNormalMapCheckBox.Location = new Point(11, 720);
+            useNormalMapCheckBox.Location = new Point(11, 542);
             useNormalMapCheckBox.Name = "useNormalMapCheckBox";
             useNormalMapCheckBox.Size = new Size(118, 19);
             useNormalMapCheckBox.TabIndex = 18;
@@ -369,9 +392,9 @@
             // 
             // loadNormalMapButton
             // 
-            loadNormalMapButton.Location = new Point(11, 745);
+            loadNormalMapButton.Location = new Point(11, 564);
             loadNormalMapButton.Name = "loadNormalMapButton";
-            loadNormalMapButton.Size = new Size(178, 27);
+            loadNormalMapButton.Size = new Size(178, 25);
             loadNormalMapButton.TabIndex = 19;
             loadNormalMapButton.Text = "Wczytaj NormalMap...";
             loadNormalMapButton.UseVisualStyleBackColor = true;
@@ -394,11 +417,15 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1000, 785);
+            ClientSize = new Size(1000, 650);
             Controls.Add(drawingPanel);
             Controls.Add(controlPanel);
+            Controls.Add(menuStrip);
+            MainMenuStrip = menuStrip;
             Name = "MainForm";
             Text = "Bezier Scene";
+            menuStrip.ResumeLayout(false);
+            menuStrip.PerformLayout();
             objectColorGroupBox.ResumeLayout(false);
             objectColorGroupBox.PerformLayout();
             controlPanel.ResumeLayout(false);
@@ -409,10 +436,13 @@
             ((System.ComponentModel.ISupportInitialize)mTrackBar).EndInit();
             ((System.ComponentModel.ISupportInitialize)lightZTrackBar).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
+        private MenuStrip menuStrip;
+        private ToolStripMenuItem helpMenuItem;
         private DrawingPanel drawingPanel;
         private Panel controlPanel;
         private Label divisionsLabel;
