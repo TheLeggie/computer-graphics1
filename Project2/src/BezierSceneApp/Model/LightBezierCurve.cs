@@ -4,18 +4,17 @@ namespace BezierSceneApp
 {
     /// <summary>
     /// Zamknięta krzywa Béziera stopnia 6 (7 punktów kontrolnych V0..V6, V6 = V0) na płaszczyźnie xy
+    /// Punkty na przywej są wyznaczanie za pomocą algorytmu de Casteljau - interpolacja liniowa aż zostanie jeden punkt
     /// </summary>
     public class LightBezierCurve
     {
         public const int PointCount = 7;
-        // liczba niezależnych uchwytów do edycji (V6 jest zawsze sprzężone z V0)
         public const int EditablePointCount = PointCount - 1;
 
         private readonly Vector2[] points = new Vector2[PointCount];
 
         public LightBezierCurve()
         {
-            // domyślna gładka pętla wokół obu powierzchni sceny, V6 = V0
             points[0] = new Vector2(0.00f, 0.60f);
             points[1] = new Vector2(-0.85f, 0.60f);
             points[2] = new Vector2(-0.95f, -0.55f);
@@ -32,7 +31,6 @@ namespace BezierSceneApp
             if ((uint)index >= PointCount)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            // zachowanie domknięcia krzywej: V6 = V0
             if (index == 0 || index == PointCount - 1)
             {
                 points[0] = value;
@@ -44,17 +42,17 @@ namespace BezierSceneApp
             }
         }
 
-        // algorytm de Casteljau na stosie (0 alokacji sterty)
+        // algorytm de Casteljau - wielokrotne dzielenie odcinków w proporcji t:(1-t)
+        // Pętla dziala dopoki ze wszystkich punktów kontrolnych zostanie 1 - wynik, punkt na przywej Beziera
         public Vector2 Evaluate(float t)
         {
             t = Math.Clamp(t, 0f, 1f);
             Span<Vector2> work = stackalloc Vector2[PointCount];
             points.AsSpan().CopyTo(work);
 
-            float oneMinusT = 1f - t;
             for (int r = 1; r < PointCount; r++)
                 for (int i = 0; i < PointCount - r; i++)
-                    work[i] = oneMinusT * work[i] + t * work[i + 1];
+                    work[i] = (1f - t) * work[i] + t * work[i + 1];
 
             return work[0];
         }

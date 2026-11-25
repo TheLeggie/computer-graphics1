@@ -25,7 +25,7 @@ namespace BezierSceneApp
         private readonly PointF[] lightPolygonScreenPoints = new PointF[LightBezierCurve.PointCount];
         private Point lastMouse;
         private int draggedControlPoint = -1;
-        private bool showLightCurve = true;
+        private bool showLightCurve = false;
 
         public DrawingPanel()
         {
@@ -127,7 +127,6 @@ namespace BezierSceneApp
             }
         }
 
-        // LPM na uchwycie: edycja punktu krzywej swiatla; LPM poza uchwytem: os Y i os X; PPM: os Z
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
@@ -224,7 +223,7 @@ namespace BezierSceneApp
         private void DrawFilled(Graphics g, Scene scene)
         {
             int w = ClientSize.Width, h = ClientSize.Height;
-            if (w <= 0 || h <= 0) // np. zminimalizowane okno
+            if (w <= 0 || h <= 0)
                 return;
 
             rasterizer.EnsureSize(w, h);
@@ -290,11 +289,13 @@ namespace BezierSceneApp
             if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
                 return;
 
+            // rysowanie wieloboku kontrolnego
             for (int i = 0; i < LightBezierCurve.PointCount; i++)
                 lightPolygonScreenPoints[i] = ToScreen(LightCurve[i]);
             using (var polyPen = new Pen(Color.FromArgb(140, LightCurveColor), 1f) { DashStyle = DashStyle.Dash })
                 g.DrawLines(polyPen, lightPolygonScreenPoints);
 
+            // rysowanie krzywej Beziera, 80 odcinków
             for (int i = 0; i <= LightCurveSegments; i++)
                 lightCurveScreenPoints[i] = ToScreen(LightCurve.Evaluate((float)i / LightCurveSegments));
             using (var curvePen = new Pen(LightCurveColor, 2f))

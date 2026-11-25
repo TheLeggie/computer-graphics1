@@ -7,7 +7,7 @@ namespace BezierSceneApp
     {
         private const string DefaultTextureFile = "texture.png";
         private const string DefaultNormalMapFile = "normalmap.png";
-        // krok parametru t na tykniecie timera (33 ms -> pelny obieg w ~6.6 s)
+        // krok parametru t na tykniecie timera
         private const float LightAnimationStep = 0.005f;
 
         private Scene? scene;
@@ -28,7 +28,6 @@ namespace BezierSceneApp
             TextureData? texture = LoadImage(Path.Combine(dataDir, DefaultTextureFile), false);
             foreach (SurfaceAppearance look in scene.Appearances)
                 look.Texture = texture;
-            // start: 1. powierzchnia jednolity kolor, 2. tekstura
             scene.Appearances[1].UseTexture = true;
             scene.NormalMap = LoadImage(Path.Combine(dataDir, DefaultNormalMapFile), true);
 
@@ -44,7 +43,6 @@ namespace BezierSceneApp
         private SurfaceAppearance? SelectedAppearance =>
             scene != null && surfaceComboBox.SelectedIndex >= 0 ? scene.Appearances[surfaceComboBox.SelectedIndex] : null;
 
-        // blad pliku -> komunikat i null (wywolujacy zostawia dotychczasowy obraz)
         private TextureData? LoadImage(string path, bool normalMap)
         {
             try
@@ -54,7 +52,6 @@ namespace BezierSceneApp
             catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException
                                            or OutOfMemoryException or System.Runtime.InteropServices.ExternalException)
             {
-                // GDI+ zglasza uszkodzony / nieobslugiwany obraz jako ArgumentException lub OutOfMemoryException
                 MessageBox.Show(this, $"Nie udało się wczytać obrazu:\n{path}\n\n{ex.Message}", "Błąd wczytywania obrazu",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return null;
@@ -102,7 +99,6 @@ namespace BezierSceneApp
             drawingPanel.Invalidate();
         }
 
-        // udane wczytanie przelacza wybrana powierzchnie na teksture
         private void loadTextureButton_Click(object? sender, EventArgs e)
         {
             SurfaceAppearance? look = SelectedAppearance;
@@ -127,7 +123,6 @@ namespace BezierSceneApp
             drawingPanel.Invalidate();
         }
 
-        // udane wczytanie wlacza mape normalnych
         private void loadNormalMapButton_Click(object? sender, EventArgs e)
         {
             if (scene == null || imageOpenFileDialog.ShowDialog(this) != DialogResult.OK)
@@ -167,7 +162,7 @@ namespace BezierSceneApp
             drawingPanel.Invalidate();
         }
 
-        // wspolny handler suwakow kd, ks, m, z swiatla (zachowuje (x(t), y(t)) na krzywej)
+        // wspolny handler suwakow kd, ks, m, punkt światła zachowuje położenie na krzywej
         private void lightingTrackBar_ValueChanged(object? sender, EventArgs e)
         {
             LightSettings light = drawingPanel.Light;
@@ -230,11 +225,17 @@ namespace BezierSceneApp
                 "• Wybór powierzchni + Kolor obiektu — niezależny tryb (jednolity kolor / tekstura), wybór koloru i wczytanie tekstury IO.\r\n" +
                 "• Mapa normalnych / Wczytaj NormalMap... — włączenie i wybór mapy normalnych.\r\n\r\n" +
                 "KLUCZOWE ALGORYTMY I ZAŁOŻENIA\r\n" +
-                "• Powierzchnie Béziera st. 3: tensorowy iloczyn Bernsteina (4×4), analityczne Pu, Pv i N = Pu × Pv.\r\n" +
-                "• Układ 3D i obrót: prawoskrętny (+Z do obserwatora, V = [0, 0, 1]), rzut prostokątny na xy; własna macierz 3×3 składana narastająco i aplikowana do oryginalnych wierzchołków.\r\n" +
-                "• Rasteryzacja i Z-buffer: skanlinia AET z sortowaniem wierzchołków do bufora int[] (LockBits + Marshal.Copy), interpolacja barycentryczna z, P3D, N, (u, v), Pu, Pv; test Z-buffera (większe z) przed cieniowaniem.\r\n" +
-                "• Oświetlenie i NormalMap: model Phonga bez ambient (kd·<N,L> + ks·<V,R>^m), dwustronność przez odwrócenie N przy Nz < 0; perturbacja w bazie stycznej M = [Pu, Pv, Npow], N' = norm(M·Ntex).\r\n" +
-                "• Tor światła: zamknięta krzywa Béziera st. 6 (7 pkt, V6 = V0) na płaszczyźnie z = const w układzie obserwatora, ewaluowana algorytmem de Casteljau.";
+                "• Plik wejściowy i dane: plik data/surfaces.txt wczytywany jako domyślny, x y z z kropką dziesiętną, zakres [-1, 1]" +
+                ", tekstura i normalMap wczytywane domyślnie z folderu data/\r\n" +
+                "• Powierzchnie Béziera st. 3: siatka 4×4 punktów kontrolnych, po podziale na trójkąty dla każdego wierzchołka liczymy " +
+                " Pu, Pv i N = Pu × Pv. ze wzorów Bernsteina w obszarze parametrów (u, v)\r\n" +
+                "• Układ 3D i obrót: prawoskrętny (+Z do obserwatora, +X w prawo, +Y w górę), rzut prostokątny na xy; własna macierz 3×3 składana przyrostowo" +
+                " i po każdym obrocie aplikowana do oryginalnych (nieobróconych) wierzchołków.\r\n" +
+                "• Rasteryzacja, wypełnianie trójkątów i Z-buffer: skanlinia AET z sortowaniem wierzchołków do bufora int[] (przenoszonego na bitmapę)," +
+                " interpolacja barycentryczna z, P3D, N, (u, v), Pu, Pv; test Z-buffera (większe z) - odrzucenie zasłoniętych punktów, dla nich nie trzeba liczyć oświetlenia.\r\n" +
+                "• Oświetlenie i NormalMap: model Phonga bez ambient (kd·<N,L> + ks·<V,R>^m), dwustronność przez odwrócenie N przy Nz < 0 (tył płaszczyzny, dzięki temu dwie strony poprawnie oświetlone)" +
+                ". Mapa normalnych modyfikuje kierunek normalnej w lokalnej bazie stycznej M = [Pu, Pv, Npow], N' = norm(M·Ntex). Kolor powierzchni jednolity lub pobierany z tekstury na podstawie (u, v).\r\n" +
+                "• Tor światła: zamknięta krzywa Béziera st. 6 (7 pkt, V6 = V0) na płaszczyźnie z = const w układzie obserwatora, punkty na krzywej wyznaczane algorytmem de Casteljau.";
 
             using var dlg = new Form
             {

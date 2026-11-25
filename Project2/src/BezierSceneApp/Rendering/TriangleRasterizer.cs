@@ -4,7 +4,12 @@ using System.Runtime.InteropServices;
 
 namespace BezierSceneApp
 {
-    // wypelnianie trojkatow (sortowanie wierzcholkow + tablica aktywnych krawedzi AET) do bufora int[] z Z-bufferem
+    /// <summary>
+    /// Rasteryzacja i wypełnianie trójkątów
+    /// Algorytm sortowania wierzchołków: scanlinia + AET - lista aktywnych krawędzi
+    /// Interpolacja atrybutów wierzcholków w przestrzeni ekranu, próbkowanie tekstury i mapy normalnych,
+    /// Z-buffer do sprawdzenia i wyswietlenia tylko najblizszego piksela z powierzchni, zapis do bitmapy
+    /// </summary>
     public class TriangleRasterizer : IDisposable
     {
         private const float Epsilon = 1e-6f;
@@ -20,7 +25,7 @@ namespace BezierSceneApp
         private int[] colorBuffer = Array.Empty<int>();
         private float[] zBuffer = Array.Empty<float>();
 
-        // reuzywane bufory pomocnicze (bez alokacji per trojkat); AET miesci max 3 krawedzie przejsciowo
+        // bufory pomocnicze, AET miesci max 3 krawedzie przejsciowo
         private readonly float[] px = new float[3];
         private readonly int[] py = new int[3];
         private readonly int[] ind = new int[3];
@@ -58,7 +63,7 @@ namespace BezierSceneApp
             Array.Fill(zBuffer, float.NegativeInfinity);
         }
 
-        // a, b, c: (x, y) ekranowe (y w dol), z = RotP.Z (+Z do obserwatora, wieksze z = blizej)
+        // a, b, c: (x, y) ekranowe (y w dol), z = RotP.Z (+Z do obserwatora, wieksze Z = blizej)
         // va, vb, vc: odpowiadajace wierzcholki (RotP, RotN do oswietlenia); color: I_O w [0, 1]
         // tex: tekstura I_O zamiast color (null = jednolity kolor); normals: NormalMap (null = wylaczona)
         public void FillTriangle(Vector3 a, Vector3 b, Vector3 c, Vertex va, Vertex vb, Vertex vc,
@@ -69,12 +74,12 @@ namespace BezierSceneApp
             if (MathF.Abs(d) < Epsilon)
                 return;
 
-            // wierzcholki P[0..2] z zaokraglonym calkowitym y na potrzeby scanlinii
+            // wierzcholki z zaokraglonym calkowitym y na potrzeby scanlinii
             px[0] = a.X; py[0] = (int)MathF.Round(a.Y);
             px[1] = b.X; py[1] = (int)MathF.Round(b.Y);
             px[2] = c.X; py[2] = (int)MathF.Round(c.Y);
 
-            // sortowanie tablicy indeksow ind[0..2] rosnaco wedlug py
+            // sortowanie tablicy indeksow wedlug py
             ind[0] = 0; ind[1] = 1; ind[2] = 2;
             if (py[ind[0]] > py[ind[1]]) (ind[0], ind[1]) = (ind[1], ind[0]);
             if (py[ind[1]] > py[ind[2]]) (ind[1], ind[2]) = (ind[2], ind[1]);
@@ -115,7 +120,7 @@ namespace BezierSceneApp
             int k = 0;
             int yEnd = Math.Min(yMax, Height - 1);
 
-            // aktualizacja AET rowniez dla y < 0; rysowanie pikseli tylko dla 0 <= y < Height
+            // pętla scanlinii, aktualizacje AET, wypełnianie pikseli po wierszach, bez tych wychodzących za ekran
             for (int y = yMin; y <= yEnd; y++)
             {
                 while (k < 3 && py[ind[k]] == y - 1)
@@ -127,7 +132,7 @@ namespace BezierSceneApp
                     UpdateAetEdge(i, next);
                 }
 
-                // sortowanie AET rosnaco wedlug biezacego x (insertion sort - bez alokacji)
+                // sortowanie AET rosnaco wedlug x
                 for (int i = 1; i < aetCount; i++)
                 {
                     ActiveEdge key = aet[i];
@@ -156,7 +161,7 @@ namespace BezierSceneApp
             int dy = py[neighbor] - py[i];
             if (dy > 0)
             {
-                // ostro > 0: pomijamy krawedzie poziome; x startuje na linii y = py[i] + 1
+                // x startuje na linii y = py[i] + 1
                 float invM = (px[neighbor] - px[i]) / (float)dy;
                 aet[aetCount++] = new ActiveEdge { Start = i, End = neighbor, X = px[i] + invM, InvM = invM };
             }
@@ -175,7 +180,7 @@ namespace BezierSceneApp
         }
         
         /// <summary>
-        /// Wypełnia jedną scanlinię na wysokości "y" pomiędzy lewą (xLeft)
+        /// Wypełnia jedną scanlinię na wysokości y pomiędzy lewą (xLeft)
         /// i prawą (xRight) krawędzią trójkąta
         /// </summary>
         private void FillRow(int y, float xLeft, float xRight, Vector3 a, Vector3 b, Vector3 c,
@@ -194,7 +199,7 @@ namespace BezierSceneApp
                 float gamma = 1f - alpha - beta;
                 float z = alpha * a.Z + beta * b.Z + gamma * c.Z;
 
-                // test glebokosci przed interpolacja atrybutow i oswietleniem
+                // test glebokosci przed interpolacja atrybutow i oswietleniem ( Z-Buffer)
                 int idx = row + x;
                 if (z <= zBuffer[idx])
                     continue;
@@ -220,7 +225,7 @@ namespace BezierSceneApp
             }
         }
 
-        // N = normalize(M * N_tekstury), M = [Pu, Pv, N_powierzchni]; RotPu i RotPv to pochodne (dlugosc != 1)
+        // N = normalize(M * N_tekstury), M = [Pu, Pv, N_powierzchni], normalna z mapy przekształcona do przestrzeni sceny
         private Vector3 PerturbNormal(Vector3 nSurf, float alpha, float beta, float gamma, Vector3 nTex)
         {
             Vector3 pu = alpha * puA + beta * puB + gamma * puC;
@@ -236,7 +241,7 @@ namespace BezierSceneApp
             return nLenSq < 1e-12f ? nSurf : n / MathF.Sqrt(nLenSq);
         }
 
-        // kopiowanie bufora do bitmapy; dla 32bpp stride = width * 4, wiec jedna kopia calej tablicy
+        // kopiowanie bufora do bitmapy
         public void CopyToBitmap()
         {
             if (Bitmap == null)

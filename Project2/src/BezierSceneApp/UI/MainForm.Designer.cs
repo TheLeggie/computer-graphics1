@@ -299,8 +299,6 @@
             // showLightCurveCheckBox
             // 
             showLightCurveCheckBox.AutoSize = true;
-            showLightCurveCheckBox.Checked = true;
-            showLightCurveCheckBox.CheckState = CheckState.Checked;
             showLightCurveCheckBox.Location = new Point(11, 363);
             showLightCurveCheckBox.Name = "showLightCurveCheckBox";
             showLightCurveCheckBox.Size = new Size(138, 19);
